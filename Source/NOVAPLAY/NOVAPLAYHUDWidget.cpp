@@ -8,7 +8,7 @@ void UNOVAPLAYHUDWidget::UpdateStaminaBar(float StaminaPercent)
 	OnStaminaUpdated(StaminaPercent);
 }
 
-void UNOVAPLAYHUDWidget::SetInteractionPrompt(bool bVisible, const FText& PromptText)
+void UNOVAPLAYHUDWidget::SetInteractionPrompt(bool bVisible, const FText& PromptText, AActor* TargetActor)
 {
-	OnInteractionPromptChanged(bVisible, PromptText);
+	OnInteractionPromptChanged(bVisible, PromptText, TargetActor);
 }

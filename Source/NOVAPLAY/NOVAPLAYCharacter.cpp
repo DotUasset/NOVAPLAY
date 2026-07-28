@@ -217,7 +217,7 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 		if (HUDWidgetInstance)
 		{
 			const bool bShowPrompt = (FocusedInteractable != nullptr);
-			HUDWidgetInstance->SetInteractionPrompt(bShowPrompt, FText::FromString(TEXT("Presiona E para interactuar")));
+			HUDWidgetInstance->SetInteractionPrompt(bShowPrompt, FText::FromString(TEXT("Presiona E para interactuar")), FocusedInteractable);
 		}
 	}
 }

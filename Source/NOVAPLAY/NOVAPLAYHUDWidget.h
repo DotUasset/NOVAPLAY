@@ -23,9 +23,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void UpdateStaminaBar(float StaminaPercent);
 
-	// Muestra/oculta el prompt de interacción ("Presiona E para agarrar")
+	// Muestra/oculta el prompt de interacción ("Presiona E para agarrar").
+		// TargetActor es el objeto sobre el que hay que dibujar el prompt en pantalla.
 	UFUNCTION(BlueprintCallable, Category = "HUD")
-	void SetInteractionPrompt(bool bVisible, const FText& PromptText);
+	void SetInteractionPrompt(bool bVisible, const FText& PromptText, AActor* TargetActor);
 
 protected:
 
@@ -36,5 +37,5 @@ protected:
 	void OnStaminaUpdated(float StaminaPercent);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
-	void OnInteractionPromptChanged(bool bVisible, const FText& PromptText);
+	void OnInteractionPromptChanged(bool bVisible, const FText& PromptText, AActor* TargetActor);
 };
