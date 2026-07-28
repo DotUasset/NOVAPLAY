@@ -33,6 +33,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
 	float GetStaminaPercent() const { return CurrentStamina / MaxStamina; }
 
+	// Se llama al apretar E: interactúa con lo que el personaje tenga enfocado
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void Interact();
+
 	// override necesario para procesar UpdateStamina cada frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -85,6 +89,18 @@ protected:
 	void HandleJumpInput();
 	void StopSprint();
 	void ToggleCrouch();
+
+	// ----- INTERACCIÓN -----
+	// Distancia máxima del trace de interacción (cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float InteractionDistance = 300.0f;
+
+	// Actor que el personaje tiene actualmente enfocado (o nullptr si no hay ninguno)
+	UPROPERTY()
+	AActor* FocusedInteractable = nullptr;
+
+	// Hace el trace desde la cámara cada frame y actualiza FocusedInteractable + el prompt del HUD
+	void PerformInteractionTrace();
 
 	// se llama todos los frames para manejar el drain/regen de stamina
 	void UpdateStamina(float DeltaTime);

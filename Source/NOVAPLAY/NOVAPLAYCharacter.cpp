@@ -9,6 +9,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "NOVAPLAYHUDWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "Interactable.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -81,6 +82,7 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	UpdateStamina(DeltaTime);
+	PerformInteractionTrace();
 }
 
 void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
@@ -166,6 +168,52 @@ void ANOVAPLAYCharacter::HandleJumpInput()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Interacción
+
+void ANOVAPLAYCharacter::PerformInteractionTrace()
+{
+	if (!FollowCamera)
+	{
+		return;
+	}
+
+	const FVector Start = FollowCamera->GetComponentLocation();
+	const FVector End = Start + (FollowCamera->GetComponentRotation().Vector() * InteractionDistance);
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+	AActor* NewFocus = nullptr;
+
+	if (bHit && Hit.GetActor() && Hit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
+	{
+		NewFocus = Hit.GetActor();
+	}
+
+	if (NewFocus != FocusedInteractable)
+	{
+		FocusedInteractable = NewFocus;
+
+		if (HUDWidgetInstance)
+		{
+			const bool bShowPrompt = (FocusedInteractable != nullptr);
+			HUDWidgetInstance->SetInteractionPrompt(bShowPrompt, FText::FromString(TEXT("Presiona E para interactuar")));
+		}
+	}
+}
+
+void ANOVAPLAYCharacter::Interact()
+{
+	if (FocusedInteractable && FocusedInteractable->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
+	{
+		IInteractable::Execute_Interact(FocusedInteractable, this);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Input
 
 void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -190,6 +238,7 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &ANOVAPLAYCharacter::StartSprint);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &ANOVAPLAYCharacter::StopSprint);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleCrouch);
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ANOVAPLAYCharacter::Interact);
 }
 
 void ANOVAPLAYCharacter::TurnAtRate(float Rate)
