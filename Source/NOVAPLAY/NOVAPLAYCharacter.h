@@ -93,7 +93,11 @@ protected:
 	// ----- INTERACCIÓN -----
 	// Distancia máxima del trace de interacción (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
-	float InteractionDistance = 300.0f;
+	float InteractionDistance = 600.0f;
+
+	// Radio del sphere trace de interacción (cm). Más alto = más tolerante al apuntar.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float InteractionTraceRadius = 20.0f;
 
 	// Actor que el personaje tiene actualmente enfocado (o nullptr si no hay ninguno)
 	UPROPERTY()

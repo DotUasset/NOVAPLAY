@@ -8,6 +8,11 @@ AItemBase::AItemBase()
 
 	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
 	RootComponent = ItemMesh;
+
+	// Nos aseguramos de que el mesh bloquee todos los canales,
+	// incluido Visibility (el que usa el trace de interacción).
+	ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	ItemMesh->SetCollisionResponseToAllChannels(ECR_Block);
 }
 
 void AItemBase::BeginPlay()

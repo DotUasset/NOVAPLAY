@@ -10,7 +10,6 @@
 #include "NOVAPLAYHUDWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Interactable.h"
-#include "DrawDebugHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -184,11 +183,19 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
 
-	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+	// Sphere trace en vez de line trace: da un margen de tolerancia
+	// (InteractionTraceRadius) para no tener que apuntar pixel-perfect,
+	// útil para objetos bajos como items en el piso.
+	FCollisionShape SphereShape = FCollisionShape::MakeSphere(InteractionTraceRadius);
 
-	DrawDebugLine(GetWorld(), Start, bHit ? Hit.Location : End, bHit ? FColor::Green : FColor::Red, false, 0.0f, 0, 1.0f);
-	if (bHit) UE_LOG(LogTemp, Warning, TEXT("Trace pego contra: %s"), *Hit.GetActor()->GetName());
+	FHitResult Hit;
+	const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility, SphereShape, Params);
+
+	if (GEngine)
+	{
+		const FString Msg = bHit ? FString::Printf(TEXT("HIT: %s a distancia %.0f"), *Hit.GetActor()->GetName(), Hit.Distance) : TEXT("SIN HIT");
+		GEngine->AddOnScreenDebugMessage(3, 0.0f, FColor::Cyan, Msg);
+	}
 
 	AActor* NewFocus = nullptr;
 
@@ -201,6 +208,12 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 	{
 		FocusedInteractable = NewFocus;
 
+		if (GEngine)
+		{
+			const FString Msg = FocusedInteractable ? FString::Printf(TEXT("Enfocando: %s"), *FocusedInteractable->GetName()) : TEXT("Sin foco");
+			GEngine->AddOnScreenDebugMessage(1, 2.0f, FColor::Yellow, Msg);
+		}
+
 		if (HUDWidgetInstance)
 		{
 			const bool bShowPrompt = (FocusedInteractable != nullptr);
@@ -211,6 +224,12 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 
 void ANOVAPLAYCharacter::Interact()
 {
+	if (GEngine)
+	{
+		const FString Msg = FocusedInteractable ? FString::Printf(TEXT("Interact() -> %s"), *FocusedInteractable->GetName()) : TEXT("Interact() -> nada enfocado");
+		GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Green, Msg);
+	}
+
 	if (FocusedInteractable && FocusedInteractable->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 	{
 		IInteractable::Execute_Interact(FocusedInteractable, this);
