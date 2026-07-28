@@ -10,6 +10,7 @@
 #include "NOVAPLAYHUDWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Interactable.h"
+#include "DrawDebugHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -185,6 +186,9 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 
 	FHitResult Hit;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+	DrawDebugLine(GetWorld(), Start, bHit ? Hit.Location : End, bHit ? FColor::Green : FColor::Red, false, 0.0f, 0, 1.0f);
+	if (bHit) UE_LOG(LogTemp, Warning, TEXT("Trace pego contra: %s"), *Hit.GetActor()->GetName());
 
 	AActor* NewFocus = nullptr;
 
