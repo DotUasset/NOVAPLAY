@@ -75,6 +75,9 @@ void ANOVAPLAYCharacter::BeginPlay()
 		if (HUDWidgetInstance)
 		{
 			HUDWidgetInstance->AddToViewport();
+
+			// NUEVO: conectamos el widget con el inventario de este personaje
+			HUDWidgetInstance->InitializeInventory(NOVAPLAYInventoryComponent);
 		}
 	}
 }

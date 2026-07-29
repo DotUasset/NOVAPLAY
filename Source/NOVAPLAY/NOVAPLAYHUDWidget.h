@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "NOVAPLAYInventoryComponent.h"
 #include "NOVAPLAYHUDWidget.generated.h"
 
 /**
@@ -28,6 +29,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SetInteractionPrompt(bool bVisible, const FText& PromptText, AActor* TargetActor);
 
+	// NUEVO: llamado una vez desde el personaje en BeginPlay, le pasamos SU inventario.
+// Acá nos suscribimos al delegate para enterarnos cada vez que cambia.
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void InitializeInventory(class UNOVAPLAYInventoryComponent* InInventoryComponent);
+
 protected:
 
 	// BlueprintImplementableEvent: NO tiene cuerpo en C++.
@@ -38,4 +44,19 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
 	void OnInteractionPromptChanged(bool bVisible, const FText& PromptText, AActor* TargetActor);
+
+	// NUEVO: se dispara cada vez que el inventario cambia. En el Widget Blueprint
+// implementás este evento para reconstruir la lista visual de ítems.
+	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
+	void OnInventoryUpdated(const TArray<FInventoryItem>& Items);
+
+private:
+	// NUEVO: función "puente" que se engancha al delegate OnInventoryChanged.
+	// Tiene que ser UFUNCTION() para poder bindearse a un delegate dinámico.
+	UFUNCTION()
+	void HandleInventoryChanged();
+
+	// Guardamos la referencia para poder leer GetItems() cuando se dispare el delegate
+	UPROPERTY()
+	class UNOVAPLAYInventoryComponent* CachedInventoryComponent = nullptr;
 };
