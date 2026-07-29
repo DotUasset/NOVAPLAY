@@ -89,7 +89,11 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	UpdateStamina(DeltaTime);
-	PerformInteractionTrace();
+
+	if (!bInventoryOpen)
+	{
+		PerformInteractionTrace();
+	}
 }
 
 void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
@@ -123,13 +127,17 @@ void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
 
 void ANOVAPLAYCharacter::StartSprint()
 {
+	if (bInventoryOpen)
+	{
+		return;
+	}
+
 	if (CurrentStamina > MinStaminaToSprint && !GetCharacterMovement()->IsCrouching())
 	{
 		bIsSprinting = true;
-		GetCharacterMovement()->MaxWalkSpeed = 600.0f; // ajustá el número a gusto
+		GetCharacterMovement()->MaxWalkSpeed = 600.0f;
 	}
 }
-
 void ANOVAPLAYCharacter::StopSprint()
 {
 	bIsSprinting = false;
@@ -138,6 +146,17 @@ void ANOVAPLAYCharacter::StopSprint()
 
 void ANOVAPLAYCharacter::ToggleCrouch()
 {
+	if (bInventoryOpen)
+	{
+		return;
+	}
+
+	// No permitimos agacharse/pararse mientras el personaje está en el aire
+	if (!GetCharacterMovement()->IsMovingOnGround())
+	{
+		return;
+	}
+
 	if (bIsCrouched)
 	{
 		UnCrouch();
@@ -150,6 +169,16 @@ void ANOVAPLAYCharacter::ToggleCrouch()
 
 void ANOVAPLAYCharacter::HandleJumpInput()
 {
+	if (bInventoryOpen)
+	{
+		return;
+	}
+
+	if (bIsCrouched)
+	{
+		return;
+	}
+
 	// El costo extra de stamina solo se cobra si el salto arranca desde el piso,
 	// mientras estás sprinteando, Y realmente te estás moviendo
 	// (evita que cobre stamina si estás parado con Shift apretado sin caminar)
@@ -231,6 +260,11 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 
 void ANOVAPLAYCharacter::Interact()
 {
+	if (bInventoryOpen)
+	{
+		return;
+	}
+
 	if (GEngine)
 	{
 		const FString Msg = FocusedInteractable ? FString::Printf(TEXT("Interact() -> %s"), *FocusedInteractable->GetName()) : TEXT("Interact() -> nada enfocado");
