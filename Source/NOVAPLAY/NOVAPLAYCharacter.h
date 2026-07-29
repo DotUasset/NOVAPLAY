@@ -38,6 +38,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void Interact();
 
+	// Abre/cierra el panel de inventario y bloquea/desbloquea el movimiento mientras está abierto
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void ToggleInventory();
+
 	// override necesario para procesar UpdateStamina cada frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -122,6 +126,10 @@ protected:
 	// Componente de inventario del personaje
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	class UNOVAPLAYInventoryComponent* NOVAPLAYInventoryComponent;
+
+	// true mientras el panel de inventario está abierto en pantalla
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	bool bInventoryOpen = false;
 
 protected:
 	// APawn interface

@@ -36,3 +36,8 @@ void UNOVAPLAYHUDWidget::HandleInventoryChanged()
 		OnInventoryUpdated(CachedInventoryComponent->GetItems());
 	}
 }
+
+void UNOVAPLAYHUDWidget::SetInventoryVisible(bool bVisible)
+{
+	OnInventoryVisibilityChanged(bVisible);
+}

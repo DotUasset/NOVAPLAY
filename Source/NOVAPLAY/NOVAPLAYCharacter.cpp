@@ -243,6 +243,41 @@ void ANOVAPLAYCharacter::Interact()
 	}
 }
 
+void ANOVAPLAYCharacter::ToggleInventory()
+{
+	bInventoryOpen = !bInventoryOpen;
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	if (bInventoryOpen)
+	{
+		// Bloqueamos movimiento y cámara mientras el inventario está abierto
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+
+		// Liberamos el mouse para poder clickear/arrastrar la UI
+		PC->SetInputMode(FInputModeGameAndUI());
+		PC->bShowMouseCursor = true;
+	}
+	else
+	{
+		PC->SetIgnoreMoveInput(false);
+		PC->SetIgnoreLookInput(false);
+
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->bShowMouseCursor = false;
+	}
+
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->SetInventoryVisible(bInventoryOpen);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -269,6 +304,9 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &ANOVAPLAYCharacter::StopSprint);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleCrouch);
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ANOVAPLAYCharacter::Interact);
+
+	// Abrir inventario
+	PlayerInputComponent->BindAction("ToggleInventory", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleInventory);
 }
 
 void ANOVAPLAYCharacter::TurnAtRate(float Rate)

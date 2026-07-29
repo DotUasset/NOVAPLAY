@@ -34,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void InitializeInventory(class UNOVAPLAYInventoryComponent* InInventoryComponent);
 
+	// Llamado desde el personaje al abrir/cerrar el inventario
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void SetInventoryVisible(bool bVisible);
+
 protected:
 
 	// BlueprintImplementableEvent: NO tiene cuerpo en C++.
@@ -49,6 +53,10 @@ protected:
 // implementás este evento para reconstruir la lista visual de ítems.
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
 	void OnInventoryUpdated(const TArray<FInventoryItem>& Items);
+
+	// Implementalo en el Widget Blueprint: mostrar/ocultar el panel del inventario
+	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
+	void OnInventoryVisibilityChanged(bool bVisible);
 
 private:
 	// NUEVO: función "puente" que se engancha al delegate OnInventoryChanged.
