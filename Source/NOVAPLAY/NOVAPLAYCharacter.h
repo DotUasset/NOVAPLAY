@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "NOVAPLAYInventoryComponent.h"
 #include "NOVAPLAYCharacter.generated.h"
 
 UCLASS(config=Game)
@@ -117,6 +118,10 @@ protected:
 	// Instancia real creada en BeginPlay
 	UPROPERTY()
 	class UNOVAPLAYHUDWidget* HUDWidgetInstance;
+
+	// Componente de inventario del personaje
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	class UNOVAPLAYInventoryComponent* NOVAPLAYInventoryComponent;
 
 protected:
 	// APawn interface

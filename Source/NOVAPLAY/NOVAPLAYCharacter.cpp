@@ -10,6 +10,7 @@
 #include "NOVAPLAYHUDWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Interactable.h"
+#include "NOVAPLAYInventoryComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -56,6 +57,9 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 
 	// Stamina arranca llena
 	CurrentStamina = MaxStamina;
+
+	// Componente de inventario del personaje
+	NOVAPLAYInventoryComponent = CreateDefaultSubobject<UNOVAPLAYInventoryComponent>(TEXT("InventoryComponent"));
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -26,6 +26,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	FText ItemName = FText::FromString(TEXT("Item"));
 
+	// Identificador único de este tipo de ítem (ej: "KEY_LIBRARY_01").
+	// Se usa para que el inventario sepa si dos ítems son "el mismo tipo" y apilarlos.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	FName ItemID;
+
 	// Implementación de la interfaz: qué pasa cuando el personaje aprieta E sobre este ítem
 	virtual void Interact_Implementation(APawn* InteractingPawn) override;
 

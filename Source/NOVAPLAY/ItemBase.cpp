@@ -1,6 +1,7 @@
 // ItemBase.cpp
 #include "ItemBase.h"
 #include "Components/StaticMeshComponent.h"
+#include "NOVAPLAYInventoryComponent.h"
 
 AItemBase::AItemBase()
 {
@@ -22,11 +23,29 @@ void AItemBase::BeginPlay()
 
 void AItemBase::Interact_Implementation(APawn* InteractingPawn)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Interact_Implementation llamado en item: %s"), *ItemName.ToString());
+	if (!InteractingPawn)
+	{
+		return;
+	}
 
-	// Por ahora solo lo destruimos, para confirmar que el flujo entero funciona.
-	// Cuando armemos el InventoryComponent (próximo paso), acá vamos a
-	// llamar a algo como InteractingPawn->FindComponentByClass<UInventoryComponent>()->AddItem(this)
-	// antes de destruirlo.
-	Destroy();
+	UNOVAPLAYInventoryComponent* Inventory = InteractingPawn->FindComponentByClass<UNOVAPLAYInventoryComponent>();
+
+	if (Inventory)
+	{
+		const bool bAdded = Inventory->AddItem(ItemID, ItemName, 1);
+
+		if (bAdded)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
+			Destroy();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No se pudo agregar %s al inventario"), *ItemID.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("El pawn que interactuó no tiene InventoryComponent"));
+	}
 }
