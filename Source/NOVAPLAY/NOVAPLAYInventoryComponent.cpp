@@ -15,7 +15,7 @@ int32 UNOVAPLAYInventoryComponent::FindItemIndex(FName ItemID) const
 	});
 }
 
-bool UNOVAPLAYInventoryComponent::AddItem(FName ItemID, FText ItemName, int32 Amount)
+bool UNOVAPLAYInventoryComponent::AddItem(FName ItemID, FText ItemName, UTexture2D* Icon, FText Description, int32 Amount)
 {
 	if (ItemID == NAME_None || Amount <= 0)
 	{
@@ -35,6 +35,8 @@ bool UNOVAPLAYInventoryComponent::AddItem(FName ItemID, FText ItemName, int32 Am
 		FInventoryItem NewItem;
 		NewItem.ItemID = ItemID;
 		NewItem.ItemName = ItemName;
+		NewItem.Icon = Icon;
+		NewItem.Description = Description;
 		NewItem.Quantity = Amount;
 		Items.Add(NewItem);
 	}

@@ -21,6 +21,14 @@ struct FInventoryItem
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	FText ItemName;
 
+	// NUEVO: ícono para mostrar en el slot de la UI
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+	class UTexture2D* Icon;
+
+	// NUEVO: descripción del ítem (ej: tooltip al pasar el mouse)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+	FText Description;
+
 	// Cuántos tiene el jugador de este ítem
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	int32 Quantity;
@@ -28,6 +36,8 @@ struct FInventoryItem
 	FInventoryItem()
 		: ItemID(NAME_None)
 		, ItemName(FText::GetEmpty())
+		, Icon(nullptr)
+		, Description(FText::GetEmpty())
 		, Quantity(0)
 	{
 	}
@@ -54,7 +64,7 @@ public:
 	// Si ya existe en el inventario, suma la cantidad en vez de duplicar la entrada.
 	// Devuelve true si se pudo agregar.
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	bool AddItem(FName ItemID, FText ItemName, int32 Amount = 1);
+	bool AddItem(FName ItemID, FText ItemName, class UTexture2D* Icon, FText Description, int32 Amount = 1);
 
 	// Saca "Amount" unidades del ítem. Si la cantidad llega a 0, se elimina
 	// la entrada del array. Devuelve true si se pudo sacar (si había suficiente).

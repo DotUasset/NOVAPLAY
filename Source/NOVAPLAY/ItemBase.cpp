@@ -32,12 +32,24 @@ void AItemBase::Interact_Implementation(APawn* InteractingPawn)
 
 	if (Inventory)
 	{
-		const bool bAdded = Inventory->AddItem(ItemID, ItemName, 1);
+		const bool bAdded = Inventory->AddItem(ItemID, ItemName, ItemIcon, ItemDescription, 1);
 
 		if (bAdded)
 		{
 			UE_LOG(LogTemp, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
-			Destroy();
+
+			if (bAdded)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
+
+				if (GEngine)
+				{
+					const FString Msg = FString::Printf(TEXT("Agregado: %s"), *ItemName.ToString());
+					GEngine->AddOnScreenDebugMessage(4, 3.0f, FColor::Green, Msg);
+				}
+
+				Destroy();
+			}
 		}
 		else
 		{

@@ -31,6 +31,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FName ItemID;
 
+	// Ícono a mostrar en el inventario
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	class UTexture2D* ItemIcon = nullptr;
+
+	// Descripción del ítem
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	FText ItemDescription;
+
 	// Implementación de la interfaz: qué pasa cuando el personaje aprieta E sobre este ítem
 	virtual void Interact_Implementation(APawn* InteractingPawn) override;
 
