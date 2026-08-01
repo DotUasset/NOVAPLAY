@@ -131,6 +131,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	bool bInventoryOpen = false;
 
+	// Clase del widget de inventario (asignás WBP_Inventory desde el Character Blueprint)
+	UPROPERTY(EditAnywhere, Category = "Inventory")
+	TSubclassOf<class UNOVAPLAYInventoryWidget> InventoryWidgetClass;
+
+	UPROPERTY()
+	class UNOVAPLAYInventoryWidget* InventoryWidgetInstance;
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

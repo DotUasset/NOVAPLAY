@@ -11,6 +11,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Interactable.h"
 #include "NOVAPLAYInventoryComponent.h"
+#include "NOVAPLAYInventoryWidget.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -75,9 +76,17 @@ void ANOVAPLAYCharacter::BeginPlay()
 		if (HUDWidgetInstance)
 		{
 			HUDWidgetInstance->AddToViewport();
+		}
+	}
 
-			// NUEVO: conectamos el widget con el inventario de este personaje
-			HUDWidgetInstance->InitializeInventory(NOVAPLAYInventoryComponent);
+	if (InventoryWidgetClass)
+	{
+		InventoryWidgetInstance = CreateWidget<UNOVAPLAYInventoryWidget>(GetWorld(), InventoryWidgetClass);
+		if (InventoryWidgetInstance)
+		{
+			InventoryWidgetInstance->InitializeInventory(NOVAPLAYInventoryComponent);
+			// Ojo: NO llamamos AddToViewport() acá — el panel arranca oculto,
+			// recién se agrega a pantalla cuando el jugador lo abre con "I"
 		}
 	}
 }
@@ -296,6 +305,11 @@ void ANOVAPLAYCharacter::ToggleInventory()
 		// Liberamos el mouse para poder clickear/arrastrar la UI
 		PC->SetInputMode(FInputModeGameAndUI());
 		PC->bShowMouseCursor = true;
+
+		if (InventoryWidgetInstance && !InventoryWidgetInstance->IsInViewport())
+		{
+			InventoryWidgetInstance->AddToViewport();
+		}
 	}
 	else
 	{
@@ -304,6 +318,11 @@ void ANOVAPLAYCharacter::ToggleInventory()
 
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
+
+		if (InventoryWidgetInstance && InventoryWidgetInstance->IsInViewport())
+		{
+			InventoryWidgetInstance->RemoveFromParent();
+		}
 	}
 
 	if (HUDWidgetInstance)
