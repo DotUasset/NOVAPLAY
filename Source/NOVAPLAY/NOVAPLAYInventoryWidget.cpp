@@ -10,8 +10,18 @@ void UNOVAPLAYInventoryWidget::InitializeInventory(UNOVAPLAYInventoryComponent* 
 	CachedInventoryComponent = InInventoryComponent;
 	CachedInventoryComponent->OnInventoryChanged.AddDynamic(this, &UNOVAPLAYInventoryWidget::HandleInventoryChanged);
 
-	// Mostramos el estado inicial por si ya había ítems agregados antes de crear el widget
+	// Mostramos el estado inicial por si ya habÃ­a Ã­tems agregados antes de crear el widget
 	HandleInventoryChanged();
+}
+
+bool UNOVAPLAYInventoryWidget::UseItem(FName ItemID)
+{
+	if (!CachedInventoryComponent)
+	{
+		return false;
+	}
+
+	return CachedInventoryComponent->UseItem(ItemID);
 }
 
 void UNOVAPLAYInventoryWidget::HandleInventoryChanged()

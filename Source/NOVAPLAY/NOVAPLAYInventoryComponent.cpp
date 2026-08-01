@@ -41,7 +41,7 @@ bool UNOVAPLAYInventoryComponent::AddItem(FName ItemID, FText ItemName, UTexture
 		Items.Add(NewItem);
 	}
 
-	// Avisamos a quien est� escuchando (t�picamente la UI) que el inventario cambi�
+	// Avisamos a quien esté escuchando (típicamente la UI) que el inventario cambió
 	OnInventoryChanged.Broadcast();
 	return true;
 }
@@ -70,6 +70,23 @@ bool UNOVAPLAYInventoryComponent::RemoveItem(FName ItemID, int32 Amount)
 
 	OnInventoryChanged.Broadcast();
 	return true;
+}
+
+bool UNOVAPLAYInventoryComponent::UseItem(FName ItemID, int32 Amount)
+{
+	// UseItem reutiliza RemoveItem: "usar" un ítem, en este sistema genérico,
+	// significa gastar una unidad. RemoveItem ya valida que exista suficiente
+	// cantidad y ya dispara OnInventoryChanged para refrescar la UI.
+	const bool bRemoved = RemoveItem(ItemID, Amount);
+
+	if (bRemoved)
+	{
+		// Avisamos específicamente que ESTE ítem se usó, para que un puzzle,
+		// una puerta, o cualquier otro sistema pueda reaccionar a ese ItemID.
+		OnItemUsed.Broadcast(ItemID);
+	}
+
+	return bRemoved;
 }
 
 bool UNOVAPLAYInventoryComponent::HasItem(FName ItemID) const

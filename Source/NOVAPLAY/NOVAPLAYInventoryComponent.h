@@ -5,15 +5,15 @@
 #include "Components/ActorComponent.h"
 #include "NOVAPLAYInventoryComponent.generated.h"
 
-// Estructura que representa un Ìtem dentro del inventario.
-// No es un actor del mundo, es solo un "dato": nombre, ID ˙nico y cantidad.
+// Estructura que representa un √≠tem dentro del inventario.
+// No es un actor del mundo, es solo un "dato": nombre, ID √∫nico y cantidad.
 USTRUCT(BlueprintType)
 struct FInventoryItem
 {
 	GENERATED_BODY()
 
-	// Identificador ˙nico del Ìtem (ej: "KEY_LIBRARY_01"). Se usa para
-	// saber si dos Ìtems son "el mismo tipo" y asÌ poder apilarlos.
+	// Identificador √∫nico del √≠tem (ej: "KEY_LIBRARY_01"). Se usa para
+	// saber si dos √≠tems son "el mismo tipo" y as√≠ poder apilarlos.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	FName ItemID;
 
@@ -21,15 +21,15 @@ struct FInventoryItem
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	FText ItemName;
 
-	// NUEVO: Ìcono para mostrar en el slot de la UI
+	// √çcono para mostrar en el slot de la UI
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	class UTexture2D* Icon;
 
-	// NUEVO: descripciÛn del Ìtem (ej: tooltip al pasar el mouse)
+	// Descripci√≥n del √≠tem (ej: tooltip al pasar el mouse)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	FText Description;
 
-	// Cu·ntos tiene el jugador de este Ìtem
+	// Cu√°ntos tiene el jugador de este √≠tem
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	int32 Quantity;
 
@@ -43,9 +43,14 @@ struct FInventoryItem
 	}
 };
 
-// Delegate sin par·metros: la UI se suscribe a esto y, cuando se dispara,
-// simplemente vuelve a pedir la lista completa de Ìtems con GetItems().
+// Delegate sin par√°metros: la UI se suscribe a esto y, cuando se dispara,
+// simplemente vuelve a pedir la lista completa de √≠tems con GetItems().
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
+
+// Delegate con el ItemID que se us√≥. Cualquier sistema del juego (un puzzle,
+// una puerta, un manager de niveles) se puede suscribir para reaccionar
+// cuando el jugador usa un √≠tem espec√≠fico (ej: "se us√≥ la llave de la biblioteca").
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, FName, ItemID);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class NOVAPLAY_API UNOVAPLAYInventoryComponent : public UActorComponent
@@ -60,22 +65,34 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FOnInventoryChanged OnInventoryChanged;
 
-	// Agrega "Amount" unidades del Ìtem identificado por ItemID.
+	// Se dispara cuando se usa un √≠tem exitosamente (ver UseItem).
+	// Los puzzles/puertas/triggers del nivel se suscriben a esto para reaccionar.
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnItemUsed OnItemUsed;
+
+	// Agrega "Amount" unidades del √≠tem identificado por ItemID.
 	// Si ya existe en el inventario, suma la cantidad en vez de duplicar la entrada.
 	// Devuelve true si se pudo agregar.
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool AddItem(FName ItemID, FText ItemName, class UTexture2D* Icon, FText Description, int32 Amount = 1);
 
-	// Saca "Amount" unidades del Ìtem. Si la cantidad llega a 0, se elimina
-	// la entrada del array. Devuelve true si se pudo sacar (si habÌa suficiente).
+	// Saca "Amount" unidades del √≠tem. Si la cantidad llega a 0, se elimina
+	// la entrada del array. Devuelve true si se pudo sacar (si hab√≠a suficiente).
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool RemoveItem(FName ItemID, int32 Amount = 1);
 
-	// Devuelve true si el inventario tiene al menos 1 unidad de ese Ìtem.
+	// "Usa" el √≠tem: lo remueve del inventario (como un consumible) y avisa
+	// al resto del juego mediante OnItemUsed, para que algo pueda reaccionar
+	// (por ejemplo, una puerta que escucha si se us√≥ la llave correcta).
+	// Devuelve true si el √≠tem exist√≠a y se pudo usar.
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool UseItem(FName ItemID, int32 Amount = 1);
+
+	// Devuelve true si el inventario tiene al menos 1 unidad de ese √≠tem.
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	bool HasItem(FName ItemID) const;
 
-	// Devuelve cu·ntas unidades tiene de ese Ìtem (0 si no lo tiene).
+	// Devuelve cu√°ntas unidades tiene de ese √≠tem (0 si no lo tiene).
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	int32 GetItemQuantity(FName ItemID) const;
 
@@ -87,6 +104,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TArray<FInventoryItem> Items;
 
-	// Busca el Ìndice de una entrada por ItemID. Devuelve INDEX_NONE si no est·.
+	// Busca el √≠ndice de una entrada por ItemID. Devuelve INDEX_NONE si no est√°.
 	int32 FindItemIndex(FName ItemID) const;
 };
