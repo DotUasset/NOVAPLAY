@@ -35,6 +35,16 @@ void APuzzle_LeverSequence::ActivateLever(int32 LeverIndex)
 		CurrentSequence.Add(LeverIndex);
 	}
 
+	if (GEngine)
+	{
+		FString Debug = TEXT("Secuencia actual: ");
+		for (int32 Val : CurrentSequence)
+		{
+			Debug += FString::Printf(TEXT("%d "), Val);
+		}
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Cyan, Debug);
+	}
+
 	CheckSolution();
 }
 
@@ -49,10 +59,19 @@ void APuzzle_LeverSequence::CheckSolution_Implementation()
 	{
 		if (CurrentSequence[i] != CorrectSequence[i])
 		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Secuencia incorrecta, reinicia"));
+			}
 			CurrentSequence.Empty();
 			ResetAllLevers();
 			return;
 		}
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("PUZZLE RESUELTO"));
 	}
 
 	OnSolved();

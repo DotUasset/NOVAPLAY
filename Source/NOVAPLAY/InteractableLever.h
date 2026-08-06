@@ -16,6 +16,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lever")
 	class UStaticMeshComponent* LeverMesh;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lever")
+	class UStaticMesh* ActiveMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lever")
+	class UStaticMesh* InactiveMesh;
+
 	UPROPERTY(EditInstanceOnly, Category = "Lever")
 	class APuzzle_LeverSequence* OwningPuzzle;
 
