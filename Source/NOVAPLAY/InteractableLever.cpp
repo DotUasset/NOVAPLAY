@@ -13,8 +13,20 @@ AInteractableLever::AInteractableLever()
 
 void AInteractableLever::Interact_Implementation(APawn* InteractingPawn)
 {
-	if (OwningPuzzle)
+	if (GEngine)
 	{
-		OwningPuzzle->ActivateLever(LeverIndex);
+		const FString Msg = FString::Printf(TEXT("Lever %d interactuada"), LeverIndex);
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, Msg);
 	}
+
+	if (!OwningPuzzle)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("OwningPuzzle es NULL!"));
+		}
+		return;
+	}
+
+	OwningPuzzle->ActivateLever(LeverIndex);
 }
