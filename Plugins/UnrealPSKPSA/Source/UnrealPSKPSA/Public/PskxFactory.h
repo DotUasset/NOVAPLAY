@@ -1,11 +1,12 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
+#include "EditorReimportHandler.h"
 #include "PskxFactory.generated.h"
 
 UCLASS()
-class UNREALPSKPSA_API UPskxFactory : public UFactory
+class UNREALPSKPSA_API UPskxFactory : public UFactory, public FReimportHandler
 {
 	GENERATED_BODY()
 public:
@@ -19,8 +20,14 @@ public:
 		SupportedClass = FactoryClass;
 	}
 	
+	// ExistingObject: when set (reimport), the mesh is rebuilt in place instead of creating a new asset.
 	static UObject* Import(const FString& Filename, UObject* Parent, const FName Name, const EObjectFlags Flags, TMap<FString, FString>
-						   MaterialNameToPathMap);
+						   MaterialNameToPathMap, UObject* ExistingObject = nullptr);
+
+	// FReimportHandler
+	virtual bool CanReimport(UObject* Obj, TArray<FString>& OutFilenames) override;
+	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
+	virtual EReimportResult::Type Reimport(UObject* Obj) override;
 
 protected:
 	UClass* FactoryClass = UStaticMesh::StaticClass();

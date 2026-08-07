@@ -9,8 +9,9 @@
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "EditorFramework/AssetImportData.h"
 
-UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap)
+UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap, UObject* ExistingObject)
 {
 	auto Data = FPskReader(Filename);
 	if (!Data.bIsValid) return nullptr;
@@ -153,7 +154,11 @@ UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FNa
 	SkeletalMeshImportData.NumTexCoords = 1 + Data.ExtraUVs.Num(); 
 	SkeletalMeshImportData.bUseT0AsRefPose = false;
 	
-	const auto Skeleton = FPskPsaUtils::LocalCreate<USkeleton>(USkeleton::StaticClass(), Parent,  Name.ToString().Append("_Skeleton"), Flags);
+	// Reimport: reuse the existing skeleton asset instead of creating a new one each time.
+	const auto ExistingSkeletalMesh = Cast<USkeletalMesh>(ExistingObject);
+	const auto Skeleton = ExistingSkeletalMesh && ExistingSkeletalMesh->GetSkeleton()
+		? ExistingSkeletalMesh->GetSkeleton()
+		: FPskPsaUtils::LocalFindOrCreate<USkeleton>(USkeleton::StaticClass(), Parent, Name.ToString().Append("_Skeleton"), Flags);
 
 	FReferenceSkeleton RefSkeleton;
 	auto SkeletalDepth = 0;
@@ -169,7 +174,9 @@ UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FNa
 	FSkeletalMeshLODModel LODModel;
 	LODModel.NumTexCoords = FMath::Max<uint32>(1, SkeletalMeshImportData.NumTexCoords);
 	
-	const auto SkeletalMesh = FPskPsaUtils::LocalCreate<USkeletalMesh>(USkeletalMesh::StaticClass(), Parent, Name.ToString(), Flags);
+	// Reimport: rebuild the existing asset in place instead of creating a new one.
+	const auto SkeletalMesh = ExistingSkeletalMesh ? ExistingSkeletalMesh : FPskPsaUtils::LocalCreate<USkeletalMesh>(USkeletalMesh::StaticClass(), Parent, Name.ToString(), Flags);
+	if (!SkeletalMesh) return nullptr;
 	SkeletalMesh->PreEditChange(nullptr);
 	SkeletalMesh->InvalidateDeriveDataCacheGUID();
 	SkeletalMesh->UnregisterAllMorphTarget();
@@ -201,11 +208,22 @@ UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FNa
 	SkeletalMesh->GetLODInfo(0)->BuildSettings = BuildOptions;
 	SkeletalMesh->SetImportedBounds(FBoxSphereBounds(FBox(SkeletalMeshImportData.Points)));
 
+	if (!SkeletalMesh->AssetImportData || !SkeletalMesh->AssetImportData->IsA<UAssetImportData>())
+	{
+		SkeletalMesh->AssetImportData = NewObject<UAssetImportData>(SkeletalMesh);
+	}
+	SkeletalMesh->AssetImportData->Update(Filename);
+
 	auto& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
 	const FSkeletalMeshBuildParameters SkeletalMeshBuildParameters(SkeletalMesh, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), 0, false);
 	if (!MeshBuilderModule.BuildSkeletalMesh(SkeletalMeshBuildParameters))
 	{
-		SkeletalMesh->MarkPendingKill(); // UE4.27: MarkAsGarbage() is the UE5 rename of MarkPendingKill()
+		// Only destroy the mesh object if we created it fresh this call - on a failed reimport,
+		// ExistingSkeletalMesh is the user's existing asset and must be left alone.
+		if (!ExistingSkeletalMesh)
+		{
+			SkeletalMesh->MarkPendingKill(); // UE4.27: MarkAsGarbage() is the UE5 rename of MarkPendingKill()
+		}
 		return nullptr;
 	}
 
@@ -261,6 +279,37 @@ UObject* UPskFactory::Import(const FString& Filename, UObject* Parent, const FNa
 	Skeleton->MarkPackageDirty();
 
 	return SkeletalMesh;
+}
+
+bool UPskFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+{
+	const auto SkeletalMesh = Cast<USkeletalMesh>(Obj);
+	if (!SkeletalMesh || !SkeletalMesh->AssetImportData) return false;
+
+	SkeletalMesh->AssetImportData->ExtractFilenames(OutFilenames);
+	return true;
+}
+
+void UPskFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+{
+	const auto SkeletalMesh = Cast<USkeletalMesh>(Obj);
+	if (SkeletalMesh && SkeletalMesh->AssetImportData && NewReimportPaths.Num() > 0)
+	{
+		SkeletalMesh->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+	}
+}
+
+EReimportResult::Type UPskFactory::Reimport(UObject* Obj)
+{
+	const auto SkeletalMesh = Cast<USkeletalMesh>(Obj);
+	if (!SkeletalMesh || !SkeletalMesh->AssetImportData) return EReimportResult::Failed;
+
+	const FString Filename = SkeletalMesh->AssetImportData->GetFirstFilename();
+	if (Filename.IsEmpty() || !FPaths::FileExists(Filename)) return EReimportResult::Failed;
+
+	return Import(Filename, SkeletalMesh->GetOuter(), SkeletalMesh->GetFName(), SkeletalMesh->GetFlags(), TMap<FString, FString>(), SkeletalMesh)
+		? EReimportResult::Succeeded
+		: EReimportResult::Failed;
 }
 
 void UPskFactory::ProcessSkeleton(const FSkeletalMeshImportData& ImportData, const USkeleton* Skeleton, FReferenceSkeleton& OutRefSkeleton, int& OutSkeletalDepth)

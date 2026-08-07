@@ -1,11 +1,12 @@
-﻿#include "PskxFactory.h"
+#include "PskxFactory.h"
 
 #include "PskPsaUtils.h"
 #include "PskReader.h"
 #include "RawMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "EditorFramework/AssetImportData.h"
 
-UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap)
+UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap, UObject* ExistingObject)
 {
 	auto Data = FPskReader(Filename);
 	if (!Data.bIsValid) return nullptr;
@@ -57,7 +58,15 @@ UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FN
 		}
 	}
 	
-	const auto StaticMesh = FPskPsaUtils::LocalCreate<UStaticMesh>(UStaticMesh::StaticClass(), Parent, Name.ToString(), Flags);
+	// Reimport: rebuild the existing asset in place instead of creating a new one.
+	const auto StaticMesh = ExistingObject ? Cast<UStaticMesh>(ExistingObject) : FPskPsaUtils::LocalCreate<UStaticMesh>(UStaticMesh::StaticClass(), Parent, Name.ToString(), Flags);
+	if (!StaticMesh) return nullptr;
+
+	StaticMesh->PreEditChange(nullptr);
+
+	// Clear out anything from a previous import so materials/sections don't accumulate duplicates on reimport.
+	StaticMesh->GetStaticMaterials().Empty();
+	StaticMesh->GetSectionInfoMap().Clear();
 
 	for (auto i = 0; i < Data.Materials.Num(); i++)
 	{
@@ -82,7 +91,8 @@ UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FN
 		StaticMesh->GetSectionInfoMap().Set(0, i, FMeshSectionInfo(i));
 	}
 	
-	auto& SourceModel = StaticMesh->AddSourceModel();
+	// Reuse LOD0's source model on reimport rather than appending another one each time.
+	auto& SourceModel = StaticMesh->GetNumSourceModels() > 0 ? StaticMesh->GetSourceModel(0) : StaticMesh->AddSourceModel();
 	SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 	SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 	SourceModel.BuildSettings.bRemoveDegenerates = true;
@@ -90,6 +100,12 @@ UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FN
 	SourceModel.BuildSettings.bRecomputeTangents = true;
 	SourceModel.BuildSettings.bUseMikkTSpace = true;
 	SourceModel.SaveRawMesh(RawMesh);
+
+	if (!StaticMesh->AssetImportData || !StaticMesh->AssetImportData->IsA<UAssetImportData>())
+	{
+		StaticMesh->AssetImportData = NewObject<UAssetImportData>(StaticMesh);
+	}
+	StaticMesh->AssetImportData->Update(Filename);
 
 	StaticMesh->Build();
 	StaticMesh->PostEditChange();
@@ -99,4 +115,35 @@ UObject* UPskxFactory::Import(const FString& Filename, UObject* Parent, const FN
 	FGlobalComponentReregisterContext RecreateComponents;
 
 	return StaticMesh;
+}
+
+bool UPskxFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+{
+	const auto StaticMesh = Cast<UStaticMesh>(Obj);
+	if (!StaticMesh || !StaticMesh->AssetImportData) return false;
+
+	StaticMesh->AssetImportData->ExtractFilenames(OutFilenames);
+	return true;
+}
+
+void UPskxFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+{
+	const auto StaticMesh = Cast<UStaticMesh>(Obj);
+	if (StaticMesh && StaticMesh->AssetImportData && NewReimportPaths.Num() > 0)
+	{
+		StaticMesh->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+	}
+}
+
+EReimportResult::Type UPskxFactory::Reimport(UObject* Obj)
+{
+	const auto StaticMesh = Cast<UStaticMesh>(Obj);
+	if (!StaticMesh || !StaticMesh->AssetImportData) return EReimportResult::Failed;
+
+	const FString Filename = StaticMesh->AssetImportData->GetFirstFilename();
+	if (Filename.IsEmpty() || !FPaths::FileExists(Filename)) return EReimportResult::Failed;
+
+	return Import(Filename, StaticMesh->GetOuter(), StaticMesh->GetFName(), StaticMesh->GetFlags(), TMap<FString, FString>(), StaticMesh)
+		? EReimportResult::Succeeded
+		: EReimportResult::Failed;
 }
