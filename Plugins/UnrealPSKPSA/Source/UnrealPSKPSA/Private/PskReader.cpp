@@ -20,7 +20,7 @@ FPskReader::FPskReader(const FString& Filepath)
 		FPskHeader Header(Ar);
 		const auto Name = Header.ChunkName;
 		const auto Count = Header.Count;
-		const auto Size = Header.Count;
+		const auto Size = Header.Size;
 
 		UE_LOG(LogUnrealPSKPSA, Log, TEXT("%s: %d"), *Name, Count);
 		
@@ -95,7 +95,9 @@ FPskReader::FPskReader(const FString& Filepath)
 				Ar.read(reinterpret_cast<char*>(&VertexColors[i]), sizeof(FColor));
 			}
 		}
-		else if (Name.Equals("EXTRAUVS"))
+		else if (Name.StartsWith("EXTRAUVS")) // chunk is named EXTRAUVS0, EXTRAUVS1, ... per UV channel - a plain
+		                                      // Equals("EXTRAUVS") never matches, so this chunk always fell
+		                                      // through to the generic "unhandled chunk" branch below and got skipped.
 		{
 			TArray<FVector2D> UVData;
 			UVData.SetNum(Count);
