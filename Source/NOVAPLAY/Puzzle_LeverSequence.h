@@ -16,7 +16,7 @@ public:
 	TArray<int32> CorrectSequence;
 
 	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	void ActivateLever(int32 LeverIndex);
+	void ActivateLever(int32 LeverIndex, AInteractableLever* Lever);
 
 	// Cada AInteractableLever se anota acá en su BeginPlay
 	UFUNCTION(BlueprintCallable, Category = "Puzzle")

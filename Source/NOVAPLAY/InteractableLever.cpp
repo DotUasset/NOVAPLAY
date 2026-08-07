@@ -38,6 +38,5 @@ void AInteractableLever::Interact_Implementation(APawn* InteractingPawn)
 		return;
 	}
 
-	OwningPuzzle->ActivateLever(LeverIndex);
-	OnLeverActivated();
+	OwningPuzzle->ActivateLever(LeverIndex, this);
 }

@@ -20,7 +20,7 @@ void APuzzle_LeverSequence::ResetAllLevers()
 	}
 }
 
-void APuzzle_LeverSequence::ActivateLever(int32 LeverIndex)
+void APuzzle_LeverSequence::ActivateLever(int32 LeverIndex, AInteractableLever* Lever)
 {
 	if (bIsSolved)
 	{
@@ -45,7 +45,50 @@ void APuzzle_LeverSequence::ActivateLever(int32 LeverIndex)
 		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Cyan, Debug);
 	}
 
-	CheckSolution();
+	const bool bReachedFullLength = (CurrentSequence.Num() == CorrectSequence.Num());
+
+	if (!bReachedFullLength)
+	{
+		if (Lever)
+		{
+			Lever->OnLeverActivated();
+		}
+		return;
+	}
+
+	bool bCorrect = true;
+	for (int32 i = 0; i < CorrectSequence.Num(); i++)
+	{
+		if (CurrentSequence[i] != CorrectSequence[i])
+		{
+			bCorrect = false;
+			break;
+		}
+	}
+
+	if (bCorrect)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("PUZZLE RESUELTO"));
+		}
+
+		if (Lever)
+		{
+			Lever->OnLeverActivated();
+		}
+		OnSolved();
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Secuencia incorrecta, reinicia"));
+		}
+
+		CurrentSequence.Empty();
+		ResetAllLevers();
+	}
 }
 
 void APuzzle_LeverSequence::CheckSolution_Implementation()
