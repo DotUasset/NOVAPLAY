@@ -6,7 +6,6 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "NOVAPLAYHUDWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Interactable.h"
@@ -25,13 +24,14 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
-	// Don't rotate when the controller rotates. Let that just affect the camera.
+	// Primera persona: el personaje gira en yaw junto con el mouse (el pitch lo maneja
+	// la camara sola, sin afectar la capsula, para no inclinar el cuerpo al mirar arriba/abajo)
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true;
 	bUseControllerRotationRoll = false;
 
 	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
+	GetCharacterMovement()->bOrientRotationToMovement = false; // ya no gira hacia donde camina: gira hacia donde mira
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
@@ -42,16 +42,12 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	// Velocidad al caminar agachado (menor a la velocidad normal de caminar)
 	GetCharacterMovement()->MaxWalkSpeedCrouched = 150.0f; // ajustá el número a gusto
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-
-	// Create a follow camera
+	// Camara de primera persona: colgada directo de la capsula, a la altura de los ojos.
+	// Sin spring arm de por medio -> nada de distancia ni colision de camara que resolver.
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	FollowCamera->SetupAttachment(GetCapsuleComponent());
+	FollowCamera->SetRelativeLocation(FVector(0.0f, 0.0f, BaseEyeHeight));
+	FollowCamera->bUsePawnControlRotation = true; // ahora la camara rota con el control directamente
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
@@ -69,6 +65,14 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 void ANOVAPLAYCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Primera persona: el dueno del pawn no ve su propio mesh de cuerpo entero
+	// (SetOwnerNoSee lo oculta solo para la vista del dueno; en multiplayer otros
+	// jugadores lo siguen viendo con normalidad)
+	if (GetMesh())
+	{
+		GetMesh()->SetOwnerNoSee(true);
+	}
 
 	if (HUDWidgetClass)
 	{
