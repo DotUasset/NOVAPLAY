@@ -11,6 +11,9 @@
 #include "Interactable.h"
 #include "NOVAPLAYInventoryComponent.h"
 #include "NOVAPLAYInventoryWidget.h"
+#include "NOVAPLAYPauseMenuWidget.h"
+#include "NOVAPLAYSettingsSave.h"
+#include "Kismet/GameplayStatics.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -81,6 +84,16 @@ void ANOVAPLAYCharacter::BeginPlay()
 	if (GetMesh())
 	{
 		GetMesh()->SetOwnerNoSee(true);
+	}
+
+	// Cargamos la sensibilidad guardada (si el jugador nunca abrio el menu de
+	// settings todavia, no existe el slot y se queda con el default de 1.0)
+	if (UGameplayStatics::DoesSaveGameExist(UNOVAPLAYSettingsSave::GetSlotName(), UNOVAPLAYSettingsSave::GetUserIndex()))
+	{
+		if (UNOVAPLAYSettingsSave* Save = Cast<UNOVAPLAYSettingsSave>(UGameplayStatics::LoadGameFromSlot(UNOVAPLAYSettingsSave::GetSlotName(), UNOVAPLAYSettingsSave::GetUserIndex())))
+		{
+			MouseSensitivity = Save->MouseSensitivity;
+		}
 	}
 
 	if (HUDWidgetClass)
@@ -484,6 +497,75 @@ void ANOVAPLAYCharacter::ToggleInventory()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Pause Menu
+
+void ANOVAPLAYCharacter::TogglePauseMenu()
+{
+	// Si el inventario esta abierto, Esc lo cierra a ese primero en vez de
+	// abrir la pausa encima -- evita que se pisen los dos bloqueos de input
+	if (bInventoryOpen && !bPauseMenuOpen)
+	{
+		ToggleInventory();
+		return;
+	}
+
+	bPauseMenuOpen = !bPauseMenuOpen;
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	if (bPauseMenuOpen)
+	{
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+
+		PC->SetInputMode(FInputModeGameAndUI());
+		PC->bShowMouseCursor = true;
+
+		UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+		if (PauseMenuWidgetClass && !PauseMenuWidgetInstance)
+		{
+			PauseMenuWidgetInstance = CreateWidget<UNOVAPLAYPauseMenuWidget>(GetWorld(), PauseMenuWidgetClass);
+		}
+
+		if (PauseMenuWidgetInstance && !PauseMenuWidgetInstance->IsInViewport())
+		{
+			PauseMenuWidgetInstance->AddToViewport(10); // Z-order alto: siempre por encima del HUD/inventario
+		}
+	}
+	else
+	{
+		ClosePauseMenu();
+	}
+}
+
+void ANOVAPLAYCharacter::ClosePauseMenu()
+{
+	bPauseMenuOpen = false;
+
+	UGameplayStatics::SetGamePaused(GetWorld(), false);
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC)
+	{
+		PC->SetIgnoreMoveInput(false);
+		PC->SetIgnoreLookInput(false);
+
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->bShowMouseCursor = false;
+	}
+
+	if (PauseMenuWidgetInstance && PauseMenuWidgetInstance->IsInViewport())
+	{
+		PauseMenuWidgetInstance->RemoveFromParent();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Input
 
 void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -499,9 +581,9 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
 	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
+	PlayerInputComponent->BindAxis("Turn", this, &ANOVAPLAYCharacter::Turn);
 	PlayerInputComponent->BindAxis("TurnRate", this, &ANOVAPLAYCharacter::TurnAtRate);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("LookUp", this, &ANOVAPLAYCharacter::LookUp);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ANOVAPLAYCharacter::LookUpAtRate);
 
 	// Sprint y Crouch
@@ -512,6 +594,19 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 	// Abrir inventario
 	PlayerInputComponent->BindAction("ToggleInventory", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleInventory);
+
+	// Menu de pausa (Esc)
+	PlayerInputComponent->BindAction("TogglePause", IE_Pressed, this, &ANOVAPLAYCharacter::TogglePauseMenu);
+}
+
+void ANOVAPLAYCharacter::Turn(float Value)
+{
+	AddControllerYawInput(Value * MouseSensitivity);
+}
+
+void ANOVAPLAYCharacter::LookUp(float Value)
+{
+	AddControllerPitchInput(Value * MouseSensitivity);
 }
 
 void ANOVAPLAYCharacter::TurnAtRate(float Rate)

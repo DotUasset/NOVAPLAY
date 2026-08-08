@@ -38,6 +38,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void ToggleInventory();
 
+	// Abre/cierra el menu de pausa (tecla Esc). Bloquea movimiento y pausa el juego.
+	UFUNCTION(BlueprintCallable, Category = "Pause Menu")
+	void TogglePauseMenu();
+
+	// Lo llama el propio WBP_PauseMenu al apretar "Reanudar", para no desincronizar el flag
+	UFUNCTION(BlueprintCallable, Category = "Pause Menu")
+	void ClosePauseMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Controls")
+	void SetMouseSensitivity(float NewSensitivity) { MouseSensitivity = FMath::Clamp(NewSensitivity, 0.1f, 5.0f); }
+
+	UFUNCTION(BlueprintPure, Category = "Settings|Controls")
+	float GetMouseSensitivity() const { return MouseSensitivity; }
+
 	// override necesario para procesar UpdateStamina cada frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -71,6 +85,16 @@ protected:
 	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	 */
 	void LookUpAtRate(float Rate);
+
+	// Turn/LookUp del mouse: a diferencia de las de arriba (gamepad, "Rate"), estas
+	// pasan por MouseSensitivity antes de aplicarse -- por eso no van directo a
+	// AddControllerYawInput/PitchInput como en el template original
+	void Turn(float Value);
+	void LookUp(float Value);
+
+	// ----- CONTROLES -----
+	UPROPERTY(BlueprintReadOnly, Category = "Settings|Controls")
+	float MouseSensitivity = 1.0f;
 
 	// ----- STAMINA -----
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stamina")
@@ -226,6 +250,17 @@ protected:
 
 	UPROPERTY()
 	class UNOVAPLAYInventoryWidget* InventoryWidgetInstance;
+
+	// ----- PAUSA / SETTINGS -----
+	// Clase del widget de pausa (asignás WBP_PauseMenu desde el Character Blueprint)
+	UPROPERTY(EditAnywhere, Category = "Pause Menu")
+	TSubclassOf<class UNOVAPLAYPauseMenuWidget> PauseMenuWidgetClass;
+
+	UPROPERTY()
+	class UNOVAPLAYPauseMenuWidget* PauseMenuWidgetInstance;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Pause Menu")
+	bool bPauseMenuOpen = false;
 
 protected:
 	// APawn interface
