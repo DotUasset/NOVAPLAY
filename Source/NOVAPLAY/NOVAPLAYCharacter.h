@@ -83,6 +83,42 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stamina")
 	float JumpStaminaCost = 15.0f; // costo extra si saltás mientras corrés
 
+	// ----- SALTO: gravedad asimetrica (sube mas lento, cae mas rapido) -----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Jump")
+	float RisingGravityScale = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Jump")
+	float FallingGravityScale = 2.5f;
+
+	// ----- SALTO: coyote time + jump buffer -----
+	// Cuanto tiempo (seg) despues de dejar el piso (sin haber saltado) todavia te deja saltar
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Jump")
+	float CoyoteTime = 0.15f;
+
+	// Cuanto tiempo (seg) se "recuerda" una pulsacion de salto hecha justo antes de aterrizar
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Jump")
+	float JumpBufferTime = 0.15f;
+
+	float TimeSinceLeftGround = 0.0f;
+	float TimeSinceJumpPressed = -1.0f; // -1 = no hay ningun salto pendiente en el buffer
+
+	void UpdateJumpGravity();
+	void UpdateJumpAssist(float DeltaTime);
+	void TryConsumeJump();
+
+	// ----- SPRINT: transicion de velocidad suave (interpolada, no instantanea) -----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Sprint")
+	float WalkSpeed = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Sprint")
+	float SprintSpeed = 600.0f;
+
+	// Que tan rapido interpola entre WalkSpeed y SprintSpeed (mas alto = transicion mas brusca)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Sprint")
+	float SpeedInterpSpeed = 6.0f;
+
+	void UpdateMovementSpeed(float DeltaTime);
+
 	bool bIsSprinting = false;
 
 	// ----- FUNCIONES DE SPRINT / CROUCH -----

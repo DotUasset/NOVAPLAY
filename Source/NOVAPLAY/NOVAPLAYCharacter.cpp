@@ -33,8 +33,15 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = false; // ya no gira hacia donde camina: gira hacia donde mira
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
-	GetCharacterMovement()->JumpZVelocity = 600.f;
-	GetCharacterMovement()->AirControl = 0.2f;
+	GetCharacterMovement()->JumpZVelocity = 700.f;
+	GetCharacterMovement()->AirControl = 0.35f; // un poco mas de maniobra en el aire que el default (0.2)
+
+	// Aceleracion/frenado mas altos que el default: arranca y frena rapido en vez de "patinar" en el piso
+	GetCharacterMovement()->MaxAcceleration = 2048.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f;
+	GetCharacterMovement()->GroundFriction = 8.0f;
+
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 
 	// Permite que este character pueda agacharse (Crouch()/UnCrouch())
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
@@ -102,6 +109,9 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	UpdateStamina(DeltaTime);
+	UpdateJumpGravity();
+	UpdateJumpAssist(DeltaTime);
+	UpdateMovementSpeed(DeltaTime);
 
 	if (!bInventoryOpen)
 	{
@@ -136,6 +146,106 @@ void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Salto: gravedad asimetrica + coyote time + jump buffer
+
+void ANOVAPLAYCharacter::UpdateJumpGravity()
+{
+	// Mientras sube usa una gravedad, mientras cae otra mas fuerte -> el salto
+	// se siente ágil arriba y "seco" al aterrizar, en vez de flotante y lento.
+	if (GetCharacterMovement()->Velocity.Z < 0.0f)
+	{
+		GetCharacterMovement()->GravityScale = FallingGravityScale;
+	}
+	else
+	{
+		GetCharacterMovement()->GravityScale = RisingGravityScale;
+	}
+}
+
+void ANOVAPLAYCharacter::UpdateJumpAssist(float DeltaTime)
+{
+	const bool bGroundedNow = GetCharacterMovement()->IsMovingOnGround();
+
+	if (bGroundedNow)
+	{
+		TimeSinceLeftGround = 0.0f;
+	}
+	else
+	{
+		TimeSinceLeftGround += DeltaTime;
+	}
+
+	// Jump buffer: si el jugador apreto salto un instante antes de tocar el piso,
+	// reintentamos consumirlo cada frame hasta que se cumpla o venza la ventana
+	if (TimeSinceJumpPressed >= 0.0f)
+	{
+		TimeSinceJumpPressed += DeltaTime;
+
+		if (TimeSinceJumpPressed > JumpBufferTime)
+		{
+			TimeSinceJumpPressed = -1.0f; // se vencio la ventana, se descarta
+		}
+		else
+		{
+			TryConsumeJump();
+		}
+	}
+}
+
+void ANOVAPLAYCharacter::TryConsumeJump()
+{
+	const bool bGrounded = GetCharacterMovement()->IsMovingOnGround();
+	const bool bWithinCoyoteWindow = !bGrounded && (TimeSinceLeftGround <= CoyoteTime);
+
+	if (!bGrounded && !bWithinCoyoteWindow)
+	{
+		return; // ni parado en el piso ni dentro de la ventana de coyote time: queda pendiente en el buffer
+	}
+
+	// Costo de stamina si saltas mientras corres (misma regla que antes)
+	const bool bIsActuallyMoving = GetCharacterMovement()->Velocity.SizeSquared() > 0.0f;
+	if (bIsSprinting && bIsActuallyMoving)
+	{
+		CurrentStamina -= JumpStaminaCost;
+		CurrentStamina = FMath::Max(CurrentStamina, 0.0f);
+
+		if (HUDWidgetInstance)
+		{
+			HUDWidgetInstance->UpdateStaminaBar(GetStaminaPercent());
+		}
+
+		if (CurrentStamina <= 0.0f)
+		{
+			StopSprint();
+		}
+	}
+
+	if (bGrounded)
+	{
+		Jump();
+	}
+	else
+	{
+		// Coyote jump: el motor ya te considera "en el aire", asi que el impulso
+		// se aplica a mano en vez de con Jump() (que solo funciona parado en el piso)
+		FVector NewVelocity = GetCharacterMovement()->Velocity;
+		NewVelocity.Z = GetCharacterMovement()->JumpZVelocity;
+		GetCharacterMovement()->Velocity = NewVelocity;
+	}
+
+	TimeSinceJumpPressed = -1.0f; // consumido: ya no queda pendiente
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Sprint: velocidad interpolada (transicion suave en vez de instantanea)
+
+void ANOVAPLAYCharacter::UpdateMovementSpeed(float DeltaTime)
+{
+	const float TargetSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = FMath::FInterpTo(GetCharacterMovement()->MaxWalkSpeed, TargetSpeed, DeltaTime, SpeedInterpSpeed);
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Sprint / Crouch
 
 void ANOVAPLAYCharacter::StartSprint()
@@ -148,13 +258,11 @@ void ANOVAPLAYCharacter::StartSprint()
 	if (CurrentStamina > MinStaminaToSprint && !GetCharacterMovement()->IsCrouching())
 	{
 		bIsSprinting = true;
-		GetCharacterMovement()->MaxWalkSpeed = 600.0f;
 	}
 }
 void ANOVAPLAYCharacter::StopSprint()
 {
 	bIsSprinting = false;
-	GetCharacterMovement()->MaxWalkSpeed = 300.0f; // velocidad normal del template
 }
 
 void ANOVAPLAYCharacter::ToggleCrouch()
@@ -192,28 +300,10 @@ void ANOVAPLAYCharacter::HandleJumpInput()
 		return;
 	}
 
-	// El costo extra de stamina solo se cobra si el salto arranca desde el piso,
-	// mientras estás sprinteando, Y realmente te estás moviendo
-	// (evita que cobre stamina si estás parado con Shift apretado sin caminar)
-	const bool bIsActuallyMoving = GetCharacterMovement()->Velocity.SizeSquared() > 0.0f;
-
-	if (bIsSprinting && GetCharacterMovement()->IsMovingOnGround() && bIsActuallyMoving)
-	{
-		CurrentStamina -= JumpStaminaCost;
-		CurrentStamina = FMath::Max(CurrentStamina, 0.0f);
-
-		if (HUDWidgetInstance)
-		{
-			HUDWidgetInstance->UpdateStaminaBar(GetStaminaPercent());
-		}
-
-		if (CurrentStamina <= 0.0f)
-		{
-			StopSprint();
-		}
-	}
-
-	Jump();
+	// Guardamos el momento de la pulsacion; si no se puede saltar ya mismo (ni con
+	// coyote time), UpdateJumpAssist va a seguir reintentando hasta JumpBufferTime
+	TimeSinceJumpPressed = 0.0f;
+	TryConsumeJump();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -240,12 +330,6 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 	FHitResult Hit;
 	const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility, SphereShape, Params);
 
-	if (GEngine)
-	{
-		const FString Msg = bHit ? FString::Printf(TEXT("HIT: %s a distancia %.0f"), *Hit.GetActor()->GetName(), Hit.Distance) : TEXT("SIN HIT");
-		GEngine->AddOnScreenDebugMessage(3, 0.0f, FColor::Cyan, Msg);
-	}
-
 	AActor* NewFocus = nullptr;
 
 	if (bHit && Hit.GetActor() && Hit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
@@ -256,12 +340,6 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 	if (NewFocus != FocusedInteractable)
 	{
 		FocusedInteractable = NewFocus;
-
-		if (GEngine)
-		{
-			const FString Msg = FocusedInteractable ? FString::Printf(TEXT("Enfocando: %s"), *FocusedInteractable->GetName()) : TEXT("Sin foco");
-			GEngine->AddOnScreenDebugMessage(1, 2.0f, FColor::Yellow, Msg);
-		}
 
 		if (HUDWidgetInstance)
 		{
@@ -276,12 +354,6 @@ void ANOVAPLAYCharacter::Interact()
 	if (bInventoryOpen)
 	{
 		return;
-	}
-
-	if (GEngine)
-	{
-		const FString Msg = FocusedInteractable ? FString::Printf(TEXT("Interact() -> %s"), *FocusedInteractable->GetName()) : TEXT("Interact() -> nada enfocado");
-		GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Green, Msg);
 	}
 
 	if (FocusedInteractable && FocusedInteractable->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
