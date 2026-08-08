@@ -33,7 +33,7 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = false; // ya no gira hacia donde camina: gira hacia donde mira
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
-	GetCharacterMovement()->JumpZVelocity = 700.f;
+	GetCharacterMovement()->JumpZVelocity = 550.f;
 	GetCharacterMovement()->AirControl = 0.35f; // un poco mas de maniobra en el aire que el default (0.2)
 
 	// Aceleracion/frenado mas altos que el default: arranca y frena rapido en vez de "patinar" en el piso
@@ -55,6 +55,7 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	FollowCamera->SetupAttachment(GetCapsuleComponent());
 	FollowCamera->SetRelativeLocation(FVector(0.0f, 0.0f, BaseEyeHeight));
 	FollowCamera->bUsePawnControlRotation = true; // ahora la camara rota con el control directamente
+	FollowCamera->FieldOfView = BaseFOV;
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
@@ -112,6 +113,7 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 	UpdateJumpGravity();
 	UpdateJumpAssist(DeltaTime);
 	UpdateMovementSpeed(DeltaTime);
+	UpdateCameraFeel(DeltaTime);
 
 	if (!bInventoryOpen)
 	{
@@ -243,6 +245,53 @@ void ANOVAPLAYCharacter::UpdateMovementSpeed(float DeltaTime)
 {
 	const float TargetSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
 	GetCharacterMovement()->MaxWalkSpeed = FMath::FInterpTo(GetCharacterMovement()->MaxWalkSpeed, TargetSpeed, DeltaTime, SpeedInterpSpeed);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Camara: head bob al caminar/correr + dip al aterrizar + FOV al sprintar
+
+void ANOVAPLAYCharacter::UpdateCameraFeel(float DeltaTime)
+{
+	if (!FollowCamera)
+	{
+		return;
+	}
+
+	// --- Head bob: solo si esta en el piso y realmente moviendose ---
+	const bool bGrounded = GetCharacterMovement()->IsMovingOnGround();
+	const float Speed = GetCharacterMovement()->Velocity.Size2D();
+	const bool bIsMoving = bGrounded && Speed > 10.0f;
+
+	float BobOffset = 0.0f;
+	if (bIsMoving)
+	{
+		// La frecuencia escala con la velocidad: pasos mas rapidos al correr que al caminar
+		BobTimeAccumulator += DeltaTime * BobFrequency * FMath::Max(Speed / WalkSpeed, 0.5f);
+		const float Amplitude = bIsSprinting ? BobAmplitudeSprint : BobAmplitudeWalk;
+		BobOffset = FMath::Sin(BobTimeAccumulator) * Amplitude;
+	}
+	else
+	{
+		BobTimeAccumulator = 0.0f; // parado o en el aire: sin balanceo
+	}
+
+	// --- Dip de aterrizaje: se recupera solo, cada frame un poco mas cerca de 0 ---
+	CurrentLandingOffset = FMath::FInterpTo(CurrentLandingOffset, 0.0f, DeltaTime, LandingRecoverySpeed);
+
+	const FVector TargetLocation(0.0f, 0.0f, BaseEyeHeight + BobOffset + CurrentLandingOffset);
+	FollowCamera->SetRelativeLocation(TargetLocation);
+
+	// --- FOV kick al sprintar ---
+	const float TargetFOV = bIsSprinting ? SprintFOV : BaseFOV;
+	FollowCamera->FieldOfView = FMath::FInterpTo(FollowCamera->FieldOfView, TargetFOV, DeltaTime, FOVInterpSpeed);
+}
+
+void ANOVAPLAYCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	// La camara se hunde de golpe y UpdateCameraFeel la recupera sola, frame a frame
+	CurrentLandingOffset = -LandingDipStrength;
 }
 
 //////////////////////////////////////////////////////////////////////////

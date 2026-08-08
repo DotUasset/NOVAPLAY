@@ -119,6 +119,38 @@ protected:
 
 	void UpdateMovementSpeed(float DeltaTime);
 
+	// ----- CAMARA: head bob, dip de aterrizaje, FOV al sprintar -----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float BobFrequency = 10.0f; // que tan rapido oscila la camara al caminar/correr
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float BobAmplitudeWalk = 1.2f; // oscilacion vertical caminando (cm)
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float BobAmplitudeSprint = 2.2f; // oscilacion vertical corriendo (cm)
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float LandingDipStrength = 8.0f; // cuanto se hunde la camara al aterrizar (cm)
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float LandingRecoverySpeed = 8.0f; // que tan rapido vuelve a su posicion normal
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float BaseFOV = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float SprintFOV = 98.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float FOVInterpSpeed = 8.0f;
+
+	float BobTimeAccumulator = 0.0f;
+	float CurrentLandingOffset = 0.0f;
+
+	void UpdateCameraFeel(float DeltaTime);
+
+	virtual void Landed(const FHitResult& Hit) override;
+
 	bool bIsSprinting = false;
 
 	// ----- FUNCIONES DE SPRINT / CROUCH -----
