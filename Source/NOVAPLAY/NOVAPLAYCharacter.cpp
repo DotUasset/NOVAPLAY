@@ -19,6 +19,7 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	StandingCapsuleHalfHeight = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
@@ -113,6 +114,7 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 	UpdateJumpGravity();
 	UpdateJumpAssist(DeltaTime);
 	UpdateMovementSpeed(DeltaTime);
+	UpdateCrouchEyeHeight(DeltaTime);
 	UpdateCameraFeel(DeltaTime);
 
 	if (!bInventoryOpen)
@@ -250,6 +252,25 @@ void ANOVAPLAYCharacter::UpdateMovementSpeed(float DeltaTime)
 //////////////////////////////////////////////////////////////////////////
 // Camara: head bob al caminar/correr + dip al aterrizar + FOV al sprintar
 
+void ANOVAPLAYCharacter::UpdateCrouchEyeHeight(float DeltaTime)
+{
+	// La capsula ya salto a su altura final ESTE MISMO FRAME (el motor no la interpola,
+	// es instantanea). Por eso la parte que suaviza tiene que ser el DROP NETO DESEADO
+	// (0 -> CrouchCameraDrop), no el offset de compensacion -- ese siempre tiene que
+	// matchear exactamente lo que la capsula ya hizo, sin ningun frame de demora,
+	// o aparece el rebote (se ve la caida completa un instante y despues "sube" de vuelta).
+	const float TargetNetDrop = bIsCrouched ? CrouchCameraDrop : 0.0f;
+	CrouchNetDropCurrent = FMath::FInterpTo(CrouchNetDropCurrent, TargetNetDrop, DeltaTime, CrouchTransitionSpeed);
+
+	// Cuanto salto la capsula, calculado en vivo cada frame (0 si esta parado, el valor
+	// completo si esta agachado -- nunca a medio camino, porque la capsula no interpola)
+	const float CrouchedHalfHeight = GetCharacterMovement()->CrouchedHalfHeight;
+	const float AutomaticCapsuleDrop = bIsCrouched ? (StandingCapsuleHalfHeight - CrouchedHalfHeight) : 0.0f;
+
+	// Cancela la caida automatica por completo, y le resta el drop neto (que si es suave)
+	CrouchEyeHeightOffset = AutomaticCapsuleDrop - CrouchNetDropCurrent;
+}
+
 void ANOVAPLAYCharacter::UpdateCameraFeel(float DeltaTime)
 {
 	if (!FollowCamera)
@@ -278,7 +299,7 @@ void ANOVAPLAYCharacter::UpdateCameraFeel(float DeltaTime)
 	// --- Dip de aterrizaje: se recupera solo, cada frame un poco mas cerca de 0 ---
 	CurrentLandingOffset = FMath::FInterpTo(CurrentLandingOffset, 0.0f, DeltaTime, LandingRecoverySpeed);
 
-	const FVector TargetLocation(0.0f, 0.0f, BaseEyeHeight + BobOffset + CurrentLandingOffset);
+	const FVector TargetLocation(0.0f, 0.0f, BaseEyeHeight + BobOffset + CurrentLandingOffset + CrouchEyeHeightOffset);
 	FollowCamera->SetRelativeLocation(TargetLocation);
 
 	// --- FOV kick al sprintar ---

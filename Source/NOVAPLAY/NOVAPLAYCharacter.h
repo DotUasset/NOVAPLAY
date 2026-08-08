@@ -149,6 +149,23 @@ protected:
 
 	void UpdateCameraFeel(float DeltaTime);
 
+	// ----- CAMARA: transicion suave de altura al agacharse -----
+	// La capsula cambia de tamano instantaneo (asi lo maneja el motor); esto desacopla
+	// la altura de la CAMARA de la de la capsula, e interpola por su cuenta.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float CrouchTransitionSpeed = 10.0f;
+
+	// Cuanto baja la camara al agacharse, en TOTAL neto (cm) -- el codigo se encarga de
+	// compensar el movimiento automatico de la capsula para que este sea el numero final real.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Camera Feel")
+	float CrouchCameraDrop = 50.0f;
+
+	float StandingCapsuleHalfHeight = 96.0f; // guardado en el constructor, antes de agachar por primera vez
+	float CrouchNetDropCurrent = 0.0f; // el drop neto suavizado (0 -> CrouchCameraDrop)
+	float CrouchEyeHeightOffset = 0.0f; // offset final aplicado a la camara, recalculado cada frame
+
+	void UpdateCrouchEyeHeight(float DeltaTime);
+
 	virtual void Landed(const FHitResult& Hit) override;
 
 	bool bIsSprinting = false;
