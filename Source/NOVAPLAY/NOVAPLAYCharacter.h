@@ -49,6 +49,14 @@ protected:
 	/** Called for forwards/backward input */
 	void MoveForward(float Value);
 
+	// Ultimo valor del axis MoveForward: positivo = adelante, negativo = atras, 0 = quieto.
+	// Se usa para no dejar sprintear yendo en reversa.
+	float LastForwardInputValue = 0.0f;
+
+	// true solo si bIsSprinting Y ademas estas yendo hacia adelante -- calculado una vez
+	// por frame al principio del Tick, lo usan stamina, velocidad, bob y FOV por igual.
+	bool bIsEffectivelySprinting = false;
+
 	/** Called for side to side input */
 	void MoveRight(float Value);
 

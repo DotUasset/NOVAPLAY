@@ -110,6 +110,12 @@ void ANOVAPLAYCharacter::BeginPlay()
 void ANOVAPLAYCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// El sprint solo "cuenta" yendo hacia adelante (o adelante+costado). Yendo en
+	// reversa o solo de costado, aunque tengas Shift apretado, es como caminar normal
+	// -- esto se calcula una sola vez acá porque stamina, velocidad, bob y FOV lo usan.
+	bIsEffectivelySprinting = bIsSprinting && (LastForwardInputValue > 0.0f);
+
 	UpdateStamina(DeltaTime);
 	UpdateJumpGravity();
 	UpdateJumpAssist(DeltaTime);
@@ -127,7 +133,7 @@ void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
 {
 	const bool bIsGrounded = GetCharacterMovement()->IsMovingOnGround();
 
-	if (bIsSprinting && bIsGrounded && GetCharacterMovement()->Velocity.SizeSquared() > 0.0f)
+	if (bIsEffectivelySprinting && bIsGrounded && GetCharacterMovement()->Velocity.SizeSquared() > 0.0f)
 	{
 		CurrentStamina -= StaminaDrainRate * DeltaTime;
 		CurrentStamina = FMath::Max(CurrentStamina, 0.0f);
@@ -208,7 +214,7 @@ void ANOVAPLAYCharacter::TryConsumeJump()
 
 	// Costo de stamina si saltas mientras corres (misma regla que antes)
 	const bool bIsActuallyMoving = GetCharacterMovement()->Velocity.SizeSquared() > 0.0f;
-	if (bIsSprinting && bIsActuallyMoving)
+	if (bIsEffectivelySprinting && bIsActuallyMoving)
 	{
 		CurrentStamina -= JumpStaminaCost;
 		CurrentStamina = FMath::Max(CurrentStamina, 0.0f);
@@ -245,7 +251,7 @@ void ANOVAPLAYCharacter::TryConsumeJump()
 
 void ANOVAPLAYCharacter::UpdateMovementSpeed(float DeltaTime)
 {
-	const float TargetSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+	const float TargetSpeed = bIsEffectivelySprinting ? SprintSpeed : WalkSpeed;
 	GetCharacterMovement()->MaxWalkSpeed = FMath::FInterpTo(GetCharacterMovement()->MaxWalkSpeed, TargetSpeed, DeltaTime, SpeedInterpSpeed);
 }
 
@@ -288,7 +294,7 @@ void ANOVAPLAYCharacter::UpdateCameraFeel(float DeltaTime)
 	{
 		// La frecuencia escala con la velocidad: pasos mas rapidos al correr que al caminar
 		BobTimeAccumulator += DeltaTime * BobFrequency * FMath::Max(Speed / WalkSpeed, 0.5f);
-		const float Amplitude = bIsSprinting ? BobAmplitudeSprint : BobAmplitudeWalk;
+		const float Amplitude = bIsEffectivelySprinting ? BobAmplitudeSprint : BobAmplitudeWalk;
 		BobOffset = FMath::Sin(BobTimeAccumulator) * Amplitude;
 	}
 	else
@@ -303,7 +309,7 @@ void ANOVAPLAYCharacter::UpdateCameraFeel(float DeltaTime)
 	FollowCamera->SetRelativeLocation(TargetLocation);
 
 	// --- FOV kick al sprintar ---
-	const float TargetFOV = bIsSprinting ? SprintFOV : BaseFOV;
+	const float TargetFOV = bIsEffectivelySprinting ? SprintFOV : BaseFOV;
 	FollowCamera->FieldOfView = FMath::FInterpTo(FollowCamera->FieldOfView, TargetFOV, DeltaTime, FOVInterpSpeed);
 }
 
@@ -522,6 +528,8 @@ void ANOVAPLAYCharacter::LookUpAtRate(float Rate)
 
 void ANOVAPLAYCharacter::MoveForward(float Value)
 {
+	LastForwardInputValue = Value;
+
 	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is forward
