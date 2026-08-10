@@ -1,51 +1,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "LevelExitBase.h"
 #include "LevelExitDoor.generated.h"
 
-class APuzzleBase;
-class UBoxComponent;
-class UStaticMeshComponent;
-
 UCLASS()
-class NOVAPLAY_API ALevelExitDoor : public AActor
+class NOVAPLAY_API ALevelExitDoor : public ALevelExitBase
 {
 	GENERATED_BODY()
 
 public:
 	ALevelExitDoor();
 
-	// La pared que tapa la salida — se mueve/desaparece al resolver los puzzles
+	// El marco: no se mueve, es el root del actor (tu mesh "Pared" de BP_Puerta_Central_A)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Door")
-	UStaticMeshComponent* WallMesh;
+	class UStaticMeshComponent* FrameMesh;
 
-	// Volumen en el hueco de la salida; cuando el jugador lo cruza (y la pared ya se abrió), carga el siguiente nivel
+	// Punto de la bisagra: posicionalo en el Viewport justo en el borde donde
+	// gira la puerta -- asi no importa donde tenga el pivot el mesh original
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Door")
-	UBoxComponent* ExitTrigger;
+	class USceneComponent* DoorPivot;
 
-	UPROPERTY(EditInstanceOnly, Category = "Door")
-	TArray<APuzzleBase*> RequiredPuzzles;
+	// La hoja de la puerta (tu mesh "Puerta"): cuelga del DoorPivot, no del marco directo
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Door")
+	class UStaticMeshComponent* DoorMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Door")
-	FName NextLevelName;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Door")
-	bool bWallOpened = false;
-
-protected:
-	virtual void BeginPlay() override;
-
-	UFUNCTION()
-	void HandlePuzzleSolved(APuzzleBase* SolvedPuzzle);
-
-	void CheckAllSolved();
-
-	UFUNCTION()
-	void OnExitTriggerOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	// El Blueprint hijo implementa acá la animación de la pared (Timeline)
-	UFUNCTION(BlueprintImplementableEvent, Category = "Door")
-	void OnWallOpened();
+	// Cuantos grados gira al abrirse (probá con numero negativo si abre para el lado que no queres)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Door")
+	float DoorOpenAngle = -90.0f;
 };
