@@ -13,8 +13,15 @@ AInteractableLock::AInteractableLock()
 
 void AInteractableLock::Interact_Implementation(APawn* InteractingPawn)
 {
-	if (OwningPuzzle)
+	if (!OwningPuzzle)
 	{
-		OwningPuzzle->TryCombine(InteractingPawn);
+		return;
+	}
+
+	const bool bUnlocked = OwningPuzzle->TryCombine(InteractingPawn);
+
+	if (bUnlocked)
+	{
+		OnUnlocked();
 	}
 }

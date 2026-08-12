@@ -20,4 +20,8 @@ public:
 	class APuzzle_ItemCombination* OwningPuzzle;
 
 	virtual void Interact_Implementation(APawn* InteractingPawn) override;
+
+protected:
+	UFUNCTION(BlueprintImplementableEvent, Category = "Lock")
+	void OnUnlocked();
 };

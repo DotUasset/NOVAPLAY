@@ -15,5 +15,5 @@ public:
 	FName RequiredItemID;
 
 	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	void TryCombine(APawn* InteractingPawn);
+	bool TryCombine(APawn* InteractingPawn);
 };

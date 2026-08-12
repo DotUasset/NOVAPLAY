@@ -1,37 +1,25 @@
 #include "Puzzle_ItemCombination.h"
 #include "NOVAPLAYInventoryComponent.h"
 
-void APuzzle_ItemCombination::TryCombine(APawn* InteractingPawn)
+bool APuzzle_ItemCombination::TryCombine(APawn* InteractingPawn)
 {
 	if (bIsSolved || !InteractingPawn)
 	{
-		return;
+		return false;
 	}
 
 	UNOVAPLAYInventoryComponent* Inventory = InteractingPawn->FindComponentByClass<UNOVAPLAYInventoryComponent>();
 
 	if (!Inventory)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Pawn sin InventoryComponent"));
-		}
-		return;
+		return false;
 	}
 
 	if (Inventory->HasItem(RequiredItemID))
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Item correcto, resolviendo"));
-		}
 		OnSolved();
+		return true;
 	}
-	else
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("No tenes el item necesario"));
-		}
-	}
+
+	return false;
 }
