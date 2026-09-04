@@ -58,6 +58,6 @@ void AItemBase::Interact_Implementation(APawn* InteractingPawn)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("El pawn que interactuó no tiene InventoryComponent"));
+		UE_LOG(LogTemp, Warning, TEXT("El pawn que interactuo no tiene InventoryComponent"));
 	}
 }

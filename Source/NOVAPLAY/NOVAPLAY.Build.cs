@@ -8,6 +8,8 @@ public class NOVAPLAY : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay" });
+		// Se agregaron AIModule, GameplayTasks y NavigationSystem para soportar
+		// AIController + Behavior Tree + Blackboard + NavMesh (persecucion del docente)
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "AIModule", "GameplayTasks", "NavigationSystem" });
 	}
 }

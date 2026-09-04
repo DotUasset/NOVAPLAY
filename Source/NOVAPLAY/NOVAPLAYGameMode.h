@@ -13,7 +13,9 @@ class ANOVAPLAYGameMode : public AGameModeBase
 
 public:
 	ANOVAPLAYGameMode();
+
+	// La llama el docente (u otro enemigo) cuando atrapa al jugador.
+	// Reinicia el nivel actual desde el principio.
+	UFUNCTION(BlueprintCallable, Category = "GameFlow")
+	void OnPlayerCaught();
 };
-
-
-
