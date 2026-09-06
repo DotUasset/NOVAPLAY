@@ -41,3 +41,48 @@ void UNOVAPLAYHUDWidget::SetInventoryVisible(bool bVisible)
 {
 	OnInventoryVisibilityChanged(bVisible);
 }
+
+void UNOVAPLAYHUDWidget::InitializeObjectives(UNOVAPLAYObjectiveComponent* InObjectiveComponent)
+{
+	if (!InObjectiveComponent)
+	{
+		return;
+	}
+
+	CachedObjectiveComponent = InObjectiveComponent;
+
+	CachedObjectiveComponent->OnObjectivesChanged.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectivesChanged);
+	CachedObjectiveComponent->OnObjectiveCompleted.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectiveCompleted);
+	CachedObjectiveComponent->OnMainObjectiveRequested.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleMainObjectiveRequested);
+
+	// Mostramos el estado inicial por si la cadena de objetivos ya había arrancado
+	// antes de que este widget se creara.
+	HandleObjectivesChanged();
+
+	// Mismo problema que arriba, pero para el objetivo principal: OnMainObjectiveRequested
+	// se dispara UNA sola vez dentro de StartObjectiveChain, así que si este widget se
+	// suscribe después de ese momento, se pierde para siempre. Lo resincronizamos a mano.
+	const FText CachedMainObjective = CachedObjectiveComponent->GetMainObjectiveTitle();
+	if (!CachedMainObjective.IsEmpty())
+	{
+		HandleMainObjectiveRequested(CachedMainObjective);
+	}
+}
+
+void UNOVAPLAYHUDWidget::HandleObjectivesChanged()
+{
+	if (CachedObjectiveComponent)
+	{
+		OnObjectivesListUpdated(CachedObjectiveComponent->GetObjectives());
+	}
+}
+
+void UNOVAPLAYHUDWidget::HandleObjectiveCompleted(FText CompletedObjectiveText)
+{
+	OnObjectiveCompletedFlash(CompletedObjectiveText);
+}
+
+void UNOVAPLAYHUDWidget::HandleMainObjectiveRequested(FText MainObjectiveText)
+{
+	OnMainObjectiveShown(MainObjectiveText);
+}

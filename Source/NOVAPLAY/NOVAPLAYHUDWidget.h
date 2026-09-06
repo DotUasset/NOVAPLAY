@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "NOVAPLAYInventoryComponent.h"
+#include "NOVAPLAYObjectiveComponent.h"
 #include "NOVAPLAYHUDWidget.generated.h"
 
 /**
@@ -38,6 +39,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void SetInventoryVisible(bool bVisible);
 
+	// NUEVO: llamado una vez desde el personaje en BeginPlay, le pasamos SU componente
+	// de objetivos. Nos suscribimos a sus delegates para enterarnos de todo lo que pasa
+	// con los objetivos del nivel (objetivo principal, progreso, completados).
+	UFUNCTION(BlueprintCallable, Category = "Objectives")
+	void InitializeObjectives(class UNOVAPLAYObjectiveComponent* InObjectiveComponent);
+
 protected:
 
 	// BlueprintImplementableEvent: NO tiene cuerpo en C++.
@@ -58,6 +65,25 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
 	void OnInventoryVisibilityChanged(bool bVisible);
 
+	// NUEVO: se dispara UNA vez al arrancar el nivel, con el objetivo principal
+	// (ej "Escapa de la biblioteca"). Implementalo en el Widget Blueprint: mostrar el
+	// texto grande en pantalla y después desvanecerlo (animación de UMG con un Delay).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Objectives")
+	void OnMainObjectiveShown(const FText& MainObjectiveText);
+
+	// NUEVO: se dispara cada vez que cambia la lista de objetivos (progreso, nuevo
+	// objetivo activado, uno completado). Implementalo reconstruyendo la lista visual
+	// completa a partir del array recibido (cada entrada trae su texto, si está
+	// completado, y el contador si corresponde).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Objectives")
+	void OnObjectivesListUpdated(const TArray<FObjectiveEntry>& Objectives);
+
+	// NUEVO: se dispara UNA vez, justo cuando un objetivo se completa, con su texto.
+	// Implementalo mostrando el cartel de "Objetivo completado" con su propia animación,
+	// por separado de la lista (que se actualiza aparte con OnObjectivesListUpdated).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Objectives")
+	void OnObjectiveCompletedFlash(const FText& CompletedObjectiveText);
+
 private:
 	// NUEVO: función "puente" que se engancha al delegate OnInventoryChanged.
 	// Tiene que ser UFUNCTION() para poder bindearse a un delegate dinámico.
@@ -67,4 +93,18 @@ private:
 	// Guardamos la referencia para poder leer GetItems() cuando se dispare el delegate
 	UPROPERTY()
 	class UNOVAPLAYInventoryComponent* CachedInventoryComponent = nullptr;
+
+	// NUEVO: funciones "puente" enganchadas a los delegates de UNOVAPLAYObjectiveComponent.
+	UFUNCTION()
+	void HandleObjectivesChanged();
+
+	UFUNCTION()
+	void HandleObjectiveCompleted(FText CompletedObjectiveText);
+
+	UFUNCTION()
+	void HandleMainObjectiveRequested(FText MainObjectiveText);
+
+	// Guardamos la referencia para poder leer GetObjectives() cuando se dispare el delegate
+	UPROPERTY()
+	class UNOVAPLAYObjectiveComponent* CachedObjectiveComponent = nullptr;
 };

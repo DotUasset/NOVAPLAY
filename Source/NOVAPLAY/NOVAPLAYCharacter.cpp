@@ -12,8 +12,11 @@
 #include "NOVAPLAYInventoryComponent.h"
 #include "NOVAPLAYInventoryWidget.h"
 #include "NOVAPLAYPauseMenuWidget.h"
+#include "NOVAPLAYCaughtWidget.h"
 #include "NOVAPLAYSettingsSave.h"
 #include "Kismet/GameplayStatics.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -69,6 +72,13 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 
 	// Componente de inventario del personaje
 	NOVAPLAYInventoryComponent = CreateDefaultSubobject<UNOVAPLAYInventoryComponent>(TEXT("InventoryComponent"));
+
+	// Componente de objetivos del personaje (la cadena de objetivos la arma cada nivel)
+	ObjectiveComponent = CreateDefaultSubobject<UNOVAPLAYObjectiveComponent>(TEXT("ObjectiveComponent"));
+
+	// Fuente de estimulos de vision: garantiza que el AI Perception del docente pueda
+	// detectarnos de forma consistente (ver RegisterForSense en BeginPlay).
+	PerceptionStimuliSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("PerceptionStimuliSource"));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -114,6 +124,28 @@ void ANOVAPLAYCharacter::BeginPlay()
 			// Ojo: NO llamamos AddToViewport() acá — el panel arranca oculto,
 			// recién se agrega a pantalla cuando el jugador lo abre con "I"
 		}
+	}
+
+	// NUEVO: conectamos el componente de objetivos con el inventario (para el progreso
+	// automatico de objetivos tipo "recolectar X items") y con el HUD (para mostrarlos).
+	// La cadena de objetivos en si todavia no existe: la arma el NIVEL llamando a
+	// ObjectiveComponent->StartObjectiveChain(...) en su propio BeginPlay.
+	if (ObjectiveComponent)
+	{
+		ObjectiveComponent->InitializeWithInventory(NOVAPLAYInventoryComponent);
+
+		if (HUDWidgetInstance)
+		{
+			HUDWidgetInstance->InitializeObjectives(ObjectiveComponent);
+		}
+	}
+
+	// Registra este personaje como fuente de estimulos visuales para el AI Perception
+	// del docente (y de cualquier otro enemigo que use AISense_Sight en el futuro).
+	if (PerceptionStimuliSource)
+	{
+		PerceptionStimuliSource->RegisterForSense(UAISense_Sight::StaticClass());
+		PerceptionStimuliSource->RegisterWithPerceptionSystem();
 	}
 }
 
@@ -562,6 +594,54 @@ void ANOVAPLAYCharacter::ClosePauseMenu()
 	if (PauseMenuWidgetInstance && PauseMenuWidgetInstance->IsInViewport())
 	{
 		PauseMenuWidgetInstance->RemoveFromParent();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Pantalla de "Atrapado"
+
+void ANOVAPLAYCharacter::ShowCaughtScreen()
+{
+	if (bIsCaught)
+	{
+		return; // ya se esta mostrando, evita crear el widget dos veces
+	}
+	bIsCaught = true;
+
+	// Si por alguna razon la pausa o el inventario estaban abiertos, los cerramos primero
+	// para que no queden dos bloqueos de input pisandose entre si.
+	if (bPauseMenuOpen)
+	{
+		ClosePauseMenu();
+	}
+	if (bInventoryOpen)
+	{
+		ToggleInventory();
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	// Bloquea el input del jugador: ya no puede moverse, mirar alrededor ni interactuar
+	PC->SetIgnoreMoveInput(true);
+	PC->SetIgnoreLookInput(true);
+
+	PC->SetInputMode(FInputModeGameAndUI());
+	PC->bShowMouseCursor = true;
+
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
+
+	if (CaughtScreenWidgetClass && !CaughtScreenWidgetInstance)
+	{
+		CaughtScreenWidgetInstance = CreateWidget<UNOVAPLAYCaughtWidget>(GetWorld(), CaughtScreenWidgetClass);
+	}
+
+	if (CaughtScreenWidgetInstance && !CaughtScreenWidgetInstance->IsInViewport())
+	{
+		CaughtScreenWidgetInstance->AddToViewport(20); // por encima del HUD/inventario/menu de pausa
 	}
 }
 

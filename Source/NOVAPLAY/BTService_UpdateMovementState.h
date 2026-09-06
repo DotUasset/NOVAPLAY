@@ -1,6 +1,5 @@
-// NOVAPLAY - BT Service: sincroniza la velocidad/giro del docente (patrulla vs persecucion).
-// Esto es lo que faltaba: ATeacherCharacter::SetMovementState() existia pero nunca se llamaba
-// desde ningun lado, por eso el docente jamas aceleraba al perseguir.
+// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion) y
+// notifica el estado de movimiento a Blueprint (ver ATeacherCharacter::NotifyMovementState).
 
 #pragma once
 

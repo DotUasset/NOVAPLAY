@@ -1,4 +1,9 @@
-// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador
+// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador.
+//
+// Esta clase se encarga SOLO de la logica dura (velocidad, patrulla, deteccion de contacto).
+// Sonido, mensajes de debug y la pantalla de "atrapado" NO se manejan aca: se disparan como
+// eventos de Blueprint (ver la seccion "EVENTOS PARA BLUEPRINT" mas abajo) para que los
+// implementes en el Event Graph de BP_Teacher, con total libertad de diseno sin recompilar C++.
 
 #pragma once
 
@@ -6,7 +11,18 @@
 #include "GameFramework/Character.h"
 #include "TeacherCharacter.generated.h"
 
-class ATargetPoint;
+class USphereComponent;
+class ANOVAPLAYCharacter;
+
+// Estado de movimiento actual del docente. Se lo pasamos a Blueprint (OnMovementStateChanged)
+// para que decida que sonido loopear y que mensaje de debug imprimir en cada caso.
+UENUM(BlueprintType)
+enum class ETeacherMovementState : uint8
+{
+	Patrolling    UMETA(DisplayName = "Patrullando"),
+	Investigating UMETA(DisplayName = "Investigando (ultima posicion vista)"),
+	Chasing       UMETA(DisplayName = "Persiguiendo")
+};
 
 UCLASS()
 class NOVAPLAY_API ATeacherCharacter : public ACharacter
@@ -16,45 +32,26 @@ class NOVAPLAY_API ATeacherCharacter : public ACharacter
 public:
 	ATeacherCharacter();
 
-	virtual void Tick(float DeltaTime) override;
-
 	// ----- VELOCIDAD -----
 
 	// Velocidad de movimiento mientras patrulla
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movimiento")
 	float PatrolSpeed = 260.0f;
 
-	// Velocidad de movimiento mientras persigue al jugador
+	// Velocidad de movimiento mientras persigue/investiga al jugador
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movimiento")
 	float ChaseSpeed = 650.0f;
 
-	// Que tan rapido gira (grados/seg) mientras patrulla. Mas bajo = giro mas suave/lento.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movimiento")
-	float PatrolRotationRate = 220.0f;
-
-	// Que tan rapido gira (grados/seg) mientras persigue. Mas alto = reacciona mas rapido al jugador.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movimiento")
-	float ChaseRotationRate = 420.0f;
-
-	// Cambia velocidad Y velocidad de giro segun el estado. La llama el BTService_UpdateMovementState
-	// cada vez que el Behavior Tree reevalua si esta persiguiendo o patrullando.
+	// Cambia la velocidad segun el estado. La llama BTService_UpdateMovementState cada vez
+	// que el Behavior Tree reevalua si esta persiguiendo/investigando o patrullando.
 	UFUNCTION(BlueprintCallable, Category = "AI|Movimiento")
-	void SetMovementState(bool bIsChasing);
+	void SetMovementState(bool bIsChasingOrInvestigating);
 
-	// ----- SALTO AUTOMATICO -----
-
-	// Si esta activo, el docente salta solo cuando queda "trabado" contra un obstaculo bajo
-	// (cordones, escalones, props chicos) en vez de quedarse empujando la pared para siempre.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Salto")
-	bool bCanAutoJump = true;
-
-	// Velocidad horizontal (cm/s) por debajo de la cual se considera "trabado" si esta intentando moverse
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Salto")
-	float StuckSpeedThreshold = 30.0f;
-
-	// Cuanto tiempo (seg) tiene que estar trabado antes de saltar
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Salto")
-	float StuckTimeToJump = 0.35f;
+	// Dispara OnMovementStateChanged solo si el estado cambio desde la ultima vez (evita
+	// spamear el evento en cada tick del Service). La llama BTService_UpdateMovementState
+	// junto con SetMovementState, pasandole el estado especifico (Patrol/Investigate/Chase).
+	UFUNCTION(BlueprintCallable, Category = "AI|Movimiento")
+	void NotifyMovementState(ETeacherMovementState NewState);
 
 	// ----- PATRULLA -----
 
@@ -74,18 +71,48 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Patrulla")
 	AActor* GetNextPatrolPoint();
 
+	// ----- CAPTURA -----
+
 	// Esfera de deteccion de contacto: si el jugador entra aca, se lo considera atrapado
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
-	class USphereComponent* CatchSphere;
+	USphereComponent* CatchSphere;
 
 	// Radio de la esfera de captura (cm). Ajustalo segun la escala del mesh del docente.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
 	float CatchRadius = 80.0f;
 
-	// Tiempo (seg) entre que el docente toca al jugador y se dispara el reinicio del nivel.
-	// Da margen para reproducir un sonido/animacion de "atrapado" antes de reiniciar.
+	// Tiempo (seg) entre que el docente toca al jugador y se dispara OnCaughtSequenceComplete.
+	// Da margen para reproducir el sonido/animacion de "atrapado" (OnPlayerCaught) antes de
+	// bloquear el input y mostrar la pantalla de derrota.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
 	float CatchDelay = 0.5f;
+
+	// ----- EVENTOS PARA BLUEPRINT -----
+	// Implementa estos eventos en el Event Graph de BP_Teacher. Ahi es donde va toda la logica
+	// de sonido y de "Print String" de debug: esta clase en C++ solo avisa CUANDO pasa cada cosa.
+
+	// Se dispara cada vez que cambia el estado de movimiento (Patrullando/Investigando/
+	// Persiguiendo). Enganchalo a un Switch on ETeacherMovementState en el Event Graph para
+	// imprimir el mensaje de debug correspondiente y arrancar/parar el loop de sonido que
+	// corresponda (podes agregar tu propio Audio Component en los Components de BP_Teacher).
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnMovementStateChanged(ETeacherMovementState NewState);
+
+	// Se dispara en el instante exacto en que el docente detecta al jugador (transicion de
+	// no verlo a verlo). Ideal para el sonido/print de "te vi" y para disparar animaciones.
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnDetectedPlayer();
+
+	// Se dispara apenas el docente toca al jugador (antes del delay). Usalo para el sonido/
+	// print de "te atrape" y para reproducir una animacion de captura.
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnPlayerCaught(ANOVAPLAYCharacter* CaughtPlayer);
+
+	// Se dispara CatchDelay segundos despues de OnPlayerCaught. Es el momento de bloquear el
+	// input y mostrar la pantalla de derrota: castea CaughtPlayer al Blueprint del jugador
+	// (ThirdPersonCharacter) y llama a su funcion "Show Caught Screen".
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnCaughtSequenceComplete(ANOVAPLAYCharacter* CaughtPlayer);
 
 protected:
 	virtual void BeginPlay() override;
@@ -95,22 +122,27 @@ protected:
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 		bool bFromSweep, const FHitResult& SweepResult);
 
-	// Llamada tras CatchDelay: avisa al GameMode que el jugador fue atrapado
-	void NotifyPlayerCaught();
-
-	// Revisa cada frame si el docente esta "empujando" un obstaculo sin avanzar y, de ser asi,
-	// lo hace saltar.
-	void UpdateAutoJump(float DeltaTime);
+	// Llamada tras CatchDelay: dispara OnCaughtSequenceComplete
+	void HandleCatchDelayFinished();
 
 	FTimerHandle CatchTimerHandle;
 
 	// Evita disparar el overlap varias veces mientras el timer de captura esta corriendo
 	bool bHasCaughtPlayer = false;
 
-	// Acumulador de tiempo "trabado", usado por UpdateAutoJump
-	float StuckTimer = 0.0f;
+	// Jugador atrapado, guardado para pasarlo a OnCaughtSequenceComplete despues del delay
+	UPROPERTY()
+	ANOVAPLAYCharacter* CaughtPlayerRef = nullptr;
 
 	// Indice del ultimo punto de patrulla devuelto por GetNextPatrolPoint
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "AI|Patrulla", Transient)
 	int32 CurrentPatrolIndex = -1;
+
+	// Ultimo estado de movimiento notificado a Blueprint, para no repetir el mismo evento
+	// en cada tick del BTService (dedupe interno, no es un sistema de debug).
+	ETeacherMovementState LastNotifiedMovementState = ETeacherMovementState::Patrolling;
+
+	// true la primera vez que se notifica el estado (fuerza el primer OnMovementStateChanged
+	// aunque el valor por default coincida con Patrolling)
+	bool bHasNotifiedMovementStateOnce = false;
 };

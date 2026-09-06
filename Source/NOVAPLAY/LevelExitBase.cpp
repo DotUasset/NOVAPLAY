@@ -3,6 +3,8 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "NOVAPLAYObjectiveComponent.h"
+#include "TimerManager.h"
 
 ALevelExitBase::ALevelExitBase()
 {
@@ -58,13 +60,29 @@ void ALevelExitBase::CheckAllSolved()
 void ALevelExitBase::OnExitTriggerOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!bIsOpened || !OtherActor || !OtherActor->IsA<ACharacter>())
+	if (!bIsOpened || !OtherActor || !OtherActor->IsA<ACharacter>() || bExitSequenceStarted)
 	{
 		return;
 	}
 
+	bExitSequenceStarted = true;
+
+	// Esto completa el ultimo objetivo de la cadena del nivel (tipicamente "Escapar").
+	if (ACharacter* EscapingCharacter = Cast<ACharacter>(OtherActor))
+	{
+		if (UNOVAPLAYObjectiveComponent* Objectives = EscapingCharacter->FindComponentByClass<UNOVAPLAYObjectiveComponent>())
+		{
+			Objectives->CompleteCurrentObjective();
+		}
+	}
+
 	if (!NextLevelName.IsNone())
 	{
-		UGameplayStatics::OpenLevel(this, NextLevelName);
+		GetWorldTimerManager().SetTimer(ExitDelayTimerHandle, this, &ALevelExitBase::OpenNextLevel, ExitDelay, false);
 	}
+}
+
+void ALevelExitBase::OpenNextLevel()
+{
+	UGameplayStatics::OpenLevel(this, NextLevelName);
 }

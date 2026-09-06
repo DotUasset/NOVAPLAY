@@ -7,6 +7,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "NOVAPLAYCharacter.h"
+#include "TeacherCharacter.h"
 
 const FName ATeacherAIController::BBKey_TargetActor(TEXT("TargetActor"));
 const FName ATeacherAIController::BBKey_CanSeePlayer(TEXT("bCanSeePlayer"));
@@ -18,15 +19,26 @@ ATeacherAIController::ATeacherAIController()
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 
 	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-	SightConfig->SightRadius = 1200.0f;            // distancia maxima a la que puede VER
-	SightConfig->LoseSightRadius = 1500.0f;         // distancia a la que deja de verlo (evita parpadeo)
+
+	// Deteccion mas generosa y mas estable que antes: radio mas grande, "colchon" mas amplio
+	// entre SightRadius y LoseSightRadius (evita que parpadee entre ver/no ver justo en el
+	// borde) y mas memoria de la ultima posicion vista antes de que el docente "se olvide".
+	// Ajustalos directo en el Class Defaults de BP_TeacherAIController sin recompilar.
+	SightConfig->SightRadius = 3000.0f;              // distancia maxima a la que puede VER
+	SightConfig->LoseSightRadius = 3800.0f;          // distancia a la que deja de verlo (evita parpadeo)
+
+	// AutoSuccessRangeFromLastSeenLocation: si el jugador se mueve pero sigue estando cerca
+	// de donde el docente lo vio por ultima vez, lo vuelve a detectar automaticamente sin
+	// necesitar linea de vista directa por un instante. Esto evita que lo "pierda" apenas
+	// dobla una esquina cerca del docente.
+	SightConfig->AutoSuccessRangeFromLastSeenLocation = 900.0f;
 
 	// El cuerpo del docente solo gira mientras camina (para que el giro sea suave, ver
 	// TeacherCharacter). Cuando esta parado esperando en un punto de patrulla, su cono de
-	// vision queda "congelado" mirando hacia donde venia. Un cono mas ancho compensa eso:
-	// 85 grados de cada lado = ~170 de campo de vision total.
-	SightConfig->PeripheralVisionAngleDegrees = 85.0f;
-	SightConfig->SetMaxAge(5.0f);                   // cuanto "recuerda" haberlo visto tras perderlo
+	// vision queda "congelado" mirando hacia donde venia. Un cono ancho compensa eso:
+	// 100 grados de cada lado = ~200 de campo de vision total.
+	SightConfig->PeripheralVisionAngleDegrees = 100.0f;
+	SightConfig->SetMaxAge(8.0f);                    // cuanto "recuerda" haberlo visto tras perderlo
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
 	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
@@ -96,4 +108,15 @@ void ATeacherAIController::OnTargetPerceived(AActor* Actor, FAIStimulus Stimulus
 		GetBlackboardComponent()->SetValueAsBool(BBKey_CanSeePlayer, false);
 		GetBlackboardComponent()->SetValueAsVector(BBKey_LastKnownLocation, Stimulus.StimulusLocation);
 	}
+
+	// Evento de "te detecte": solo en el instante exacto en que pasa de no verlo a verlo.
+	// El sonido y el Print String de debug se implementan en el Event Graph de BP_Teacher.
+	if (bEffectivelySensed && !bWasSeenLastFrame)
+	{
+		if (ATeacherCharacter* Teacher = Cast<ATeacherCharacter>(GetPawn()))
+		{
+			Teacher->OnDetectedPlayer();
+		}
+	}
+	bWasSeenLastFrame = bEffectivelySensed;
 }

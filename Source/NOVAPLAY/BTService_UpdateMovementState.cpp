@@ -1,4 +1,6 @@
-// NOVAPLAY - BT Service: sincroniza la velocidad/giro del docente (patrulla vs persecucion)
+// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion/
+// investigacion) y le avisa a Blueprint (OnMovementStateChanged) que estado tiene ahora,
+// para que el Event Graph de BP_Teacher decida sonido y mensajes de debug.
 
 #include "BTService_UpdateMovementState.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -34,10 +36,19 @@ void UBTService_UpdateMovementState::TickNode(UBehaviorTreeComponent& OwnerComp,
 		return;
 	}
 
-	// Persigue a velocidad de chase si lo ve AHORA o si todavia va camino a la ultima
-	// posicion conocida (investigando). Si no, vuelve a velocidad de patrulla.
 	const bool bCanSee = BB->GetValueAsBool(ATeacherAIController::BBKey_CanSeePlayer);
 	const bool bInvestigating = BB->IsVectorValueSet(ATeacherAIController::BBKey_LastKnownLocation);
 
+	// Persigue a velocidad de chase si lo ve AHORA o si todavia va camino a la ultima
+	// posicion conocida (investigando). Si no, vuelve a velocidad de patrulla.
 	Teacher->SetMovementState(bCanSee || bInvestigating);
+
+	// El estado especifico (mas detallado que el bool de arriba) se lo pasamos a Blueprint
+	// para que decida sonido/debug. NotifyMovementState ya se encarga de no repetir el mismo
+	// evento si el estado no cambio.
+	const ETeacherMovementState NewState = bCanSee
+		? ETeacherMovementState::Chasing
+		: (bInvestigating ? ETeacherMovementState::Investigating : ETeacherMovementState::Patrolling);
+
+	Teacher->NotifyMovementState(NewState);
 }

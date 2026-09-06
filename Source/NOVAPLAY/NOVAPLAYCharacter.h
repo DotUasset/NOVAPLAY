@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "NOVAPLAYInventoryComponent.h"
+#include "NOVAPLAYObjectiveComponent.h"
 #include "NOVAPLAYCharacter.generated.h"
 
 UCLASS(config=Game)
@@ -30,6 +31,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
 	float GetStaminaPercent() const { return CurrentStamina / MaxStamina; }
 
+	// Progreso de agachado, ya suavizado (0 = parado, 1 = agachado del todo). Pensado para
+	// que el Anim Blueprint lo lea (Get Owning Actor -> Cast -> este getter) y lo use en un
+	// nodo "Transform (Modify) Bone" sobre pelvis/spine_01 para simular el agachado
+	// visualmente mientras no tengas animaciones de crouch reales.
+	UFUNCTION(BlueprintPure, Category = "Movement|Crouch")
+	float GetCrouchAlpha() const { return CrouchCameraDrop > 0.0f ? (CrouchNetDropCurrent / CrouchCameraDrop) : 0.0f; }
+
 	// Se llama al apretar E: interactúa con lo que el personaje tenga enfocado
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void Interact();
@@ -51,6 +59,26 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Settings|Controls")
 	float GetMouseSensitivity() const { return MouseSensitivity; }
+
+	// ----- PANTALLA DE "ATRAPADO" -----
+	// Mismo patron que el menu de pausa/inventario: esta clase base en C++ crea el widget y
+	// bloquea el input; el diseno (texto, botones de nivel con "Open Level (by Name)") se arma
+	// en el Blueprint hijo WBP_CaughtScreen. La llama el Event Graph de BP_Teacher (evento
+	// OnCaughtSequenceComplete) casteando el jugador atrapado a este Blueprint (ThirdPersonCharacter).
+
+	// true mientras la pantalla de "atrapado" esta en pantalla (bloquea reabrir pausa/inventario)
+	UPROPERTY(BlueprintReadOnly, Category = "Caught Screen")
+	bool bIsCaught = false;
+
+	// Clase del widget de "atrapado" (asigna WBP_CaughtScreen aca, en el Blueprint del jugador)
+	UPROPERTY(EditAnywhere, Category = "Caught Screen")
+	TSubclassOf<class UNOVAPLAYCaughtWidget> CaughtScreenWidgetClass;
+
+	// Pausa el juego, bloquea movimiento/camara y muestra WBP_CaughtScreen. Los botones de esa
+	// pantalla deciden a donde ir (reintentar o un nivel especifico) con su propio
+	// "Open Level (by Name)", igual que los botones de WBP_PauseMenu.
+	UFUNCTION(BlueprintCallable, Category = "Caught Screen")
+	void ShowCaughtScreen();
 
 	// override necesario para procesar UpdateStamina cada frame
 	virtual void Tick(float DeltaTime) override;
@@ -240,6 +268,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	class UNOVAPLAYInventoryComponent* NOVAPLAYInventoryComponent;
 
+	// Componente de objetivos del personaje. La cadena de objetivos en si la define
+	// el NIVEL (ver UNOVAPLAYObjectiveComponent::StartObjectiveChain), no el personaje.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Objectives")
+	class UNOVAPLAYObjectiveComponent* ObjectiveComponent;
+
 	// true mientras el panel de inventario está abierto en pantalla
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	bool bInventoryOpen = false;
@@ -261,6 +294,17 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Pause Menu")
 	bool bPauseMenuOpen = false;
+
+	// ----- PANTALLA DE "ATRAPADO" (instancia real) -----
+	UPROPERTY()
+	class UNOVAPLAYCaughtWidget* CaughtScreenWidgetInstance;
+
+	// ----- DETECCION POR LA IA DEL DOCENTE -----
+	// Registra a este personaje como fuente de estimulos de vision (AISense_Sight) para que
+	// el AI Perception del docente lo detecte de forma confiable, sin depender de que quede
+	// registrado "por las dudas" en algun otro lado del proyecto.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Deteccion", meta = (AllowPrivateAccess = "true"))
+	class UAIPerceptionStimuliSourceComponent* PerceptionStimuliSource;
 
 protected:
 	// APawn interface

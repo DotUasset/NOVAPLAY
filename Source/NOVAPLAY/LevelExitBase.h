@@ -29,6 +29,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Exit")
 	bool bIsOpened = false;
 
+	// Tiempo (seg) entre que el jugador pisa el trigger de salida (ya abierto) y que
+	// efectivamente se carga el siguiente nivel. Da lugar a que el HUD alcance a mostrar
+	// el "Objetivo completado: Escapar" antes de que cambie el nivel.
+	UPROPERTY(EditAnywhere, Category = "Exit")
+	float ExitDelay = 1.2f;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -45,4 +51,12 @@ protected:
 	// (mover una pared, girar una puerta, lo que sea)
 	UFUNCTION(BlueprintImplementableEvent, Category = "Exit")
 	void OnExitOpened();
+
+private:
+	// Evita que un segundo overlap reinicie el timer o dispare el objetivo dos veces.
+	bool bExitSequenceStarted = false;
+
+	FTimerHandle ExitDelayTimerHandle;
+
+	void OpenNextLevel();
 };

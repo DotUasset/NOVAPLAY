@@ -25,11 +25,11 @@ public:
 	class UBlackboardData* BlackboardAsset;
 
 	// Si el jugador esta agachado, multiplicamos el radio de vision por este valor para decidir
-	// si realmente lo detecta. Ej: 0.45 significa que agachado hay que estar a menos de la mitad
-	// de distancia para ser visto -> el jugador se puede "esconder" alejandose y agachandose,
-	// ademas de taparse detras de geometria (eso ya lo bloquea el trace de vision solo).
+	// si realmente lo detecta. Ej: 0.6 significa que agachado hay que estar a menos del 60%
+	// de la distancia normal para ser visto -> el jugador se puede "esconder" alejandose y
+	// agachandose, ademas de taparse detras de geometria (eso ya lo bloquea el trace de vision solo).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Sigilo")
-	float CrouchSightMultiplier = 0.45f;
+	float CrouchSightMultiplier = 0.6f;
 
 	// Nombres de las keys del Blackboard, expuestos para no hardcodear strings en varios lugares.
 	// Deben coincidir EXACTAMENTE con los nombres de key que crees en BB_Teacher.
@@ -44,13 +44,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	UAIPerceptionComponent* AIPerceptionComp;
 
-	// EditDefaultsOnly (no VisibleAnywhere) a proposito: asi se puede expandir y tocar
-	// SightRadius / LoseSightRadius / PeripheralVisionAngleDegrees directo en el Class
-	// Defaults de BP_TeacherAIController, sin tener que recompilar C++ cada vez que
-	// quieras ajustar la vision.
-	UPROPERTY(EditDefaultsOnly, Category = "AI|Vision", meta = (AllowPrivateAccess = "true"))
+	// EditDefaultsOnly + Instanced (no VisibleAnywhere): asi el editor lo muestra como un
+	// panel expandible dentro del Class Defaults de BP_TeacherAIController, con SightRadius /
+	// LoseSightRadius / PeripheralVisionAngleDegrees editables ahi mismo, sin recompilar C++
+	// cada vez que quieras ajustar la vision. (Sin "Instanced" el editor solo muestra un
+	// selector de objeto vacio y grisado, que es justo lo que viste antes.)
+	UPROPERTY(EditDefaultsOnly, Instanced, Category = "AI|Vision", meta = (AllowPrivateAccess = "true"))
 	class UAISenseConfig_Sight* SightConfig;
 
 	UFUNCTION()
 	void OnTargetPerceived(AActor* Actor, FAIStimulus Stimulus);
+
+	// Guarda si en el frame anterior lo estaba viendo, para disparar el sonido/debug de
+	// "detectado" solo en el instante exacto en que pasa de false a true (no en cada tick).
+	bool bWasSeenLastFrame = false;
 };

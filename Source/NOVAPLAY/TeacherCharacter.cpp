@@ -3,14 +3,12 @@
 #include "TeacherCharacter.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Engine/TargetPoint.h"
 #include "NOVAPLAYCharacter.h"
-#include "NOVAPLAYGameMode.h"
 #include "TimerManager.h"
 
 ATeacherCharacter::ATeacherCharacter()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	CatchSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CatchSphere"));
 	CatchSphere->SetupAttachment(RootComponent);
@@ -18,8 +16,8 @@ ATeacherCharacter::ATeacherCharacter()
 	CatchSphere->SetCollisionProfileName(TEXT("Trigger"));
 	CatchSphere->SetGenerateOverlapEvents(true);
 
-	// El docente NUNCA gira instantaneamente hacia donde apunta el controller: gira
-	// suavemente hacia donde se esta moviendo. Esto evita el giro "brusco"/teleport visual.
+	// El docente gira suavemente hacia donde se esta moviendo en vez de girar
+	// instantaneamente hacia donde apunta el controller (evita el giro "teleport" visual).
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -27,7 +25,6 @@ ATeacherCharacter::ATeacherCharacter()
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
 	{
 		MoveComp->bOrientRotationToMovement = true;
-		MoveComp->RotationRate = FRotator(0.0f, PatrolRotationRate, 0.0f);
 
 		// Arranca a velocidad de patrulla
 		MoveComp->MaxWalkSpeed = PatrolSpeed;
@@ -37,10 +34,6 @@ ATeacherCharacter::ATeacherCharacter()
 		MoveComp->MaxAcceleration = 1536.0f;
 		MoveComp->BrakingDecelerationWalking = 1536.0f;
 		MoveComp->GroundFriction = 8.0f;
-
-		// Necesario para que bCanAutoJump tenga suficiente impulso al saltar obstaculos bajos
-		MoveComp->JumpZVelocity = 500.0f;
-		MoveComp->AirControl = 0.3f;
 	}
 }
 
@@ -50,56 +43,32 @@ void ATeacherCharacter::BeginPlay()
 
 	CatchSphere->SetSphereRadius(CatchRadius);
 	CatchSphere->OnComponentBeginOverlap.AddDynamic(this, &ATeacherCharacter::OnCatchOverlap);
+
+	// Arranca en velocidad/estado de patrulla desde el primer frame
+	SetMovementState(false);
+	NotifyMovementState(ETeacherMovementState::Patrolling);
 }
 
-void ATeacherCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (bCanAutoJump)
-	{
-		UpdateAutoJump(DeltaTime);
-	}
-}
-
-void ATeacherCharacter::SetMovementState(bool bIsChasing)
+void ATeacherCharacter::SetMovementState(bool bIsChasingOrInvestigating)
 {
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
 	{
-		MoveComp->MaxWalkSpeed = bIsChasing ? ChaseSpeed : PatrolSpeed;
-		MoveComp->RotationRate = FRotator(0.0f, bIsChasing ? ChaseRotationRate : PatrolRotationRate, 0.0f);
+		MoveComp->MaxWalkSpeed = bIsChasingOrInvestigating ? ChaseSpeed : PatrolSpeed;
 	}
 }
 
-void ATeacherCharacter::UpdateAutoJump(float DeltaTime)
+void ATeacherCharacter::NotifyMovementState(ETeacherMovementState NewState)
 {
-	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	if (!MoveComp || !MoveComp->IsMovingOnGround())
+	if (bHasNotifiedMovementStateOnce && NewState == LastNotifiedMovementState)
 	{
-		// En el aire o cayendo: no acumules tiempo "trabado"
-		StuckTimer = 0.0f;
 		return;
 	}
 
-	// Esta tratando de moverse (tiene aceleracion pedida por el MoveTo del Behavior Tree)...
-	const bool bTryingToMove = MoveComp->GetCurrentAcceleration().SizeSquared() > FMath::Square(50.0f);
+	bHasNotifiedMovementStateOnce = true;
+	LastNotifiedMovementState = NewState;
 
-	// ...pero casi no se mueve en el plano horizontal: probablemente esta contra un obstaculo.
-	const bool bBarelyMoving = GetVelocity().SizeSquared2D() < FMath::Square(StuckSpeedThreshold);
-
-	if (bTryingToMove && bBarelyMoving)
-	{
-		StuckTimer += DeltaTime;
-		if (StuckTimer >= StuckTimeToJump)
-		{
-			Jump();
-			StuckTimer = 0.0f;
-		}
-	}
-	else
-	{
-		StuckTimer = 0.0f;
-	}
+	// El Event Graph de BP_Teacher decide que sonido/print corresponde a cada estado
+	OnMovementStateChanged(NewState);
 }
 
 AActor* ATeacherCharacter::GetNextPatrolPoint()
@@ -138,22 +107,25 @@ void ATeacherCharacter::OnCatchOverlap(UPrimitiveComponent* OverlappedComp, AAct
 	if (ANOVAPLAYCharacter* Player = Cast<ANOVAPLAYCharacter>(OtherActor))
 	{
 		bHasCaughtPlayer = true;
+		CaughtPlayerRef = Player;
+
+		// Sonido/print de "te atrape" instantaneo, implementado en el Event Graph de BP_Teacher
+		OnPlayerCaught(Player);
 
 		if (CatchDelay <= 0.0f)
 		{
-			NotifyPlayerCaught();
+			HandleCatchDelayFinished();
 		}
 		else
 		{
-			GetWorldTimerManager().SetTimer(CatchTimerHandle, this, &ATeacherCharacter::NotifyPlayerCaught, CatchDelay, false);
+			GetWorldTimerManager().SetTimer(CatchTimerHandle, this, &ATeacherCharacter::HandleCatchDelayFinished, CatchDelay, false);
 		}
 	}
 }
 
-void ATeacherCharacter::NotifyPlayerCaught()
+void ATeacherCharacter::HandleCatchDelayFinished()
 {
-	if (ANOVAPLAYGameMode* GM = GetWorld()->GetAuthGameMode<ANOVAPLAYGameMode>())
-	{
-		GM->OnPlayerCaught();
-	}
+	// El Event Graph de BP_Teacher castea CaughtPlayerRef al Blueprint del jugador y llama
+	// "Show Caught Screen" para bloquear el input y mostrar WBP_CaughtScreen.
+	OnCaughtSequenceComplete(CaughtPlayerRef);
 }

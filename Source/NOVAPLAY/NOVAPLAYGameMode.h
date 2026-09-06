@@ -6,6 +6,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "NOVAPLAYGameMode.generated.h"
 
+// La logica de "fin de partida al ser atrapado" vive en ANOVAPLAYCharacter::ShowCaughtScreen()
+// (mismo patron que el menu de pausa/inventario) y se dispara desde el Event Graph de BP_Teacher
+// (evento OnCaughtSequenceComplete). Este GameMode solo se encarga de elegir el pawn del jugador.
 UCLASS(minimalapi)
 class ANOVAPLAYGameMode : public AGameModeBase
 {
@@ -13,9 +16,4 @@ class ANOVAPLAYGameMode : public AGameModeBase
 
 public:
 	ANOVAPLAYGameMode();
-
-	// La llama el docente (u otro enemigo) cuando atrapa al jugador.
-	// Reinicia el nivel actual desde el principio.
-	UFUNCTION(BlueprintCallable, Category = "GameFlow")
-	void OnPlayerCaught();
 };
