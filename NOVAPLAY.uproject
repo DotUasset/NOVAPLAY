@@ -18,6 +18,10 @@
 		{
 			"Name": "UnrealPSKPSA",
 			"Enabled": false
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
