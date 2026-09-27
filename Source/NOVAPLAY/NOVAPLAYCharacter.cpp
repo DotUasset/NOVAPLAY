@@ -17,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Sight.h"
+#include "Perception/AISense_Hearing.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ANOVAPLAYCharacter
@@ -145,6 +146,10 @@ void ANOVAPLAYCharacter::BeginPlay()
 	if (PerceptionStimuliSource)
 	{
 		PerceptionStimuliSource->RegisterForSense(UAISense_Sight::StaticClass());
+		// NUEVO: tambien nos registramos para el sentido de oido, asi el docente (que ahora
+		// tiene UAISenseConfig_Hearing, ver TeacherAIController) puede escuchar los ruidos que
+		// emitimos con EmitAINoise (pasos, aterrizajes, etc.)
+		PerceptionStimuliSource->RegisterForSense(UAISense_Hearing::StaticClass());
 		PerceptionStimuliSource->RegisterWithPerceptionSystem();
 	}
 }
@@ -167,6 +172,7 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 	UpdateMovementSpeed(DeltaTime);
 	UpdateCrouchEyeHeight(DeltaTime);
 	UpdateCameraFeel(DeltaTime);
+	UpdateFootstepNoise(DeltaTime);
 
 	if (!bInventoryOpen)
 	{
@@ -364,6 +370,54 @@ void ANOVAPLAYCharacter::Landed(const FHitResult& Hit)
 
 	// La camara se hunde de golpe y UpdateCameraFeel la recupera sola, frame a frame
 	CurrentLandingOffset = -LandingDipStrength;
+
+	// Aterrizar hace ruido: si el docente esta escuchando cerca, esto puede delatarte aunque
+	// hayas saltado agachado o fuera de su vista.
+	EmitAINoise(LandingNoiseLoudness);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Ruido (AI Sense - Hearing)
+
+void ANOVAPLAYCharacter::EmitAINoise(float Loudness)
+{
+	if (Loudness <= 0.0f)
+	{
+		return;
+	}
+
+	// ReportNoiseEvent es la forma "manual" de generar un estimulo de oido, sin depender de
+	// un PawnNoiseEmitterComponent ni de MakeNoise(). Loudness se multiplica por HearingRange/
+	// LoSHearingRange del lado del que escucha (ver UAISenseConfig_Hearing en TeacherAIController)
+	// para decidir el rango real al que este ruido puntual es audible.
+	UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetActorLocation(), Loudness, this);
+}
+
+void ANOVAPLAYCharacter::UpdateFootstepNoise(float DeltaTime)
+{
+	if (!GetCharacterMovement()->IsMovingOnGround())
+	{
+		DistanceSinceLastFootstep = 0.0f; // en el aire no hay "pasos"; el aterrizaje ya emite el suyo
+		return;
+	}
+
+	const float SpeedThisFrame = GetVelocity().Size2D();
+	if (SpeedThisFrame <= KINDA_SMALL_NUMBER)
+	{
+		return; // quieto: no acumula distancia, no genera pasos
+	}
+
+	DistanceSinceLastFootstep += SpeedThisFrame * DeltaTime;
+
+	if (DistanceSinceLastFootstep >= FootstepNoiseInterval)
+	{
+		DistanceSinceLastFootstep = 0.0f;
+
+		const float Loudness = bIsCrouched ? CrouchNoiseLoudness
+			: (bIsEffectivelySprinting ? SprintNoiseLoudness : WalkNoiseLoudness);
+
+		EmitAINoise(Loudness);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

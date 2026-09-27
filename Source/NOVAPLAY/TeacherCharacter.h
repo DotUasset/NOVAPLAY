@@ -24,6 +24,22 @@ enum class ETeacherMovementState : uint8
 	Chasing       UMETA(DisplayName = "Persiguiendo")
 };
 
+// Nivel de conciencia del docente sobre el jugador. Independiente de ETeacherMovementState:
+// esto es sobre CUANTO sabe/sospecha el docente, no sobre a que velocidad se mueve.
+// Pensado para mostrar un icono "?" (Suspicious) o "!" (Alerted) sobre la cabeza del docente
+// desde el Event Graph de BP_Teacher (ver OnAwarenessChanged).
+UENUM(BlueprintType)
+enum class ETeacherAwarenessState : uint8
+{
+	// No sospecha nada: no ve ni escucho nada relevante ultimamente.
+	Unaware    UMETA(DisplayName = "Sin sospechas"),
+	// Escucho un ruido o tiene al jugador a la vista pero todavia no el tiempo suficiente
+	// como para estar seguro (ver TimeToDetectSight en ATeacherAIController). Va a investigar.
+	Suspicious UMETA(DisplayName = "Sospechando"),
+	// Confirmo al jugador: lo esta persiguiendo activamente.
+	Alerted    UMETA(DisplayName = "Alertado")
+};
+
 UCLASS()
 class NOVAPLAY_API ATeacherCharacter : public ACharacter
 {
@@ -52,6 +68,11 @@ public:
 	// junto con SetMovementState, pasandole el estado especifico (Patrol/Investigate/Chase).
 	UFUNCTION(BlueprintCallable, Category = "AI|Movimiento")
 	void NotifyMovementState(ETeacherMovementState NewState);
+
+	// Igual que NotifyMovementState pero para el nivel de sospecha (Unaware/Suspicious/Alerted).
+	// La llama ATeacherAIController cada vez que cambia su estado interno de deteccion.
+	UFUNCTION(BlueprintCallable, Category = "AI|Movimiento")
+	void NotifyAwarenessState(ETeacherAwarenessState NewState);
 
 	// ----- PATRULLA -----
 
@@ -98,10 +119,21 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
 	void OnMovementStateChanged(ETeacherMovementState NewState);
 
-	// Se dispara en el instante exacto en que el docente detecta al jugador (transicion de
-	// no verlo a verlo). Ideal para el sonido/print de "te vi" y para disparar animaciones.
+	// Se dispara cada vez que cambia el nivel de sospecha (Unaware/Suspicious/Alerted).
+	// Ideal para mostrar/ocultar un icono "?" o "!" sobre la cabeza del docente.
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnAwarenessChanged(ETeacherAwarenessState NewState);
+
+	// Se dispara en el instante exacto en que el docente CONFIRMA al jugador (pasa a Alerted,
+	// tras el tiempo de deteccion). Ideal para el sonido/print de "te vi" y animaciones.
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
 	void OnDetectedPlayer();
+
+	// Se dispara cuando el docente escucha un ruido del jugador (paso corriendo, aterrizaje,
+	// etc.) sin haberlo visto todavia. Util para un sonido corto de "eh?" y para que Blueprint
+	// haga que el docente gire la cabeza hacia RUMBO, sin necesidad de tocar el Behavior Tree.
+	UFUNCTION(BlueprintImplementableEvent, Category = "AI|Eventos")
+	void OnHeardNoise(FVector NoiseLocation, float Loudness);
 
 	// Se dispara apenas el docente toca al jugador (antes del delay). Usalo para el sonido/
 	// print de "te atrape" y para reproducir una animacion de captura.
@@ -145,4 +177,8 @@ protected:
 	// true la primera vez que se notifica el estado (fuerza el primer OnMovementStateChanged
 	// aunque el valor por default coincida con Patrolling)
 	bool bHasNotifiedMovementStateOnce = false;
+
+	// Mismo patron que arriba pero para el nivel de sospecha
+	ETeacherAwarenessState LastNotifiedAwarenessState = ETeacherAwarenessState::Unaware;
+	bool bHasNotifiedAwarenessStateOnce = false;
 };

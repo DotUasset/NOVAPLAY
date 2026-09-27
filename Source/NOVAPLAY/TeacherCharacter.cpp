@@ -71,6 +71,19 @@ void ATeacherCharacter::NotifyMovementState(ETeacherMovementState NewState)
 	OnMovementStateChanged(NewState);
 }
 
+void ATeacherCharacter::NotifyAwarenessState(ETeacherAwarenessState NewState)
+{
+	if (bHasNotifiedAwarenessStateOnce && NewState == LastNotifiedAwarenessState)
+	{
+		return;
+	}
+
+	bHasNotifiedAwarenessStateOnce = true;
+	LastNotifiedAwarenessState = NewState;
+
+	OnAwarenessChanged(NewState);
+}
+
 AActor* ATeacherCharacter::GetNextPatrolPoint()
 {
 	if (PatrolPoints.Num() == 0)

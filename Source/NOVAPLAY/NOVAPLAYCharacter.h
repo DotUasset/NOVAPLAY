@@ -306,6 +306,48 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Deteccion", meta = (AllowPrivateAccess = "true"))
 	class UAIPerceptionStimuliSourceComponent* PerceptionStimuliSource;
 
+	// ----- RUIDO (nuevo): antes el docente solo detectaba por vision. Ahora el jugador
+	// tambien emite ruido al moverse, y el docente lo escucha (ver TeacherAIController) -----
+
+	// Volumen (Loudness) del paso mientras camina normal. En AISense_Hearing, el rango real
+	// al que se escucha es aprox. HearingRange * Loudness, asi que 1.0 = rango completo.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Ruido")
+	float WalkNoiseLoudness = 0.4f;
+
+	// Volumen del paso mientras corre (mas alto: es mucho mas facil que te escuchen corriendo)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Ruido")
+	float SprintNoiseLoudness = 1.0f;
+
+	// Volumen del paso agachado (muy bajo: agacharse tambien te hace mas silencioso, no solo
+	// mas dificil de ver)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Ruido")
+	float CrouchNoiseLoudness = 0.12f;
+
+	// Volumen del ruido al aterrizar de un salto
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Ruido")
+	float LandingNoiseLoudness = 0.8f;
+
+	// Distancia (cm) que hay que recorrer entre un "paso" (evento de ruido) y el siguiente.
+	// Mas alto = pasos menos frecuentes. Se escala solo por la velocidad real de movimiento,
+	// asi que corriendo se emiten mas seguido de forma natural sin necesidad de un segundo valor.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Ruido")
+	float FootstepNoiseInterval = 180.0f;
+
+	// Distancia acumulada desde el ultimo paso/ruido emitido
+	float DistanceSinceLastFootstep = 0.0f;
+
+	// Emite un evento de ruido en la posicion actual del personaje para que cualquier AI que
+	// escuche (AISense_Hearing) lo detecte. Publica y BlueprintCallable para que interactuables
+	// (abrir un cajon, tirar un libro, activar la computadora) tambien puedan usarlo desde
+	// Blueprint sin tener que tocar mas C++.
+	UFUNCTION(BlueprintCallable, Category = "AI|Ruido")
+	void EmitAINoise(float Loudness);
+
+	// Se llama cada frame en movimiento: acumula distancia recorrida y emite un paso
+	// (EmitAINoise) cada FootstepNoiseInterval cm, con el volumen que corresponda al estado
+	// actual (agachado/caminando/corriendo).
+	void UpdateFootstepNoise(float DeltaTime);
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
