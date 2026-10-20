@@ -38,6 +38,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement|Crouch")
 	float GetCrouchAlpha() const { return CrouchCameraDrop > 0.0f ? (CrouchNetDropCurrent / CrouchCameraDrop) : 0.0f; }
 
+	// ----- LINTERNA -----
+	// El NIVEL (ALevelLightingController) llama esto para habilitar la linterna. Mientras no
+	// este habilitada, la tecla F no hace nada (asi los otros niveles no la tienen).
+	UFUNCTION(BlueprintCallable, Category = "Flashlight")
+	void SetFlashlightAvailable(bool bAvailable);
+
+	// Prende/apaga la linterna (tecla F)
+	UFUNCTION(BlueprintCallable, Category = "Flashlight")
+	void ToggleFlashlight();
+
+	UFUNCTION(BlueprintPure, Category = "Flashlight")
+	bool IsFlashlightOn() const { return bFlashlightOn; }
+
 	// Se llama al apretar E: interactúa con lo que el personaje tenga enfocado
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void Interact();
@@ -235,6 +248,29 @@ protected:
 	void HandleJumpInput();
 	void StopSprint();
 	void ToggleCrouch();
+
+	// ----- LINTERNA -----
+	// Spotlight colgado de la camara: apunta a donde mira el jugador
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
+	class USpotLightComponent* Flashlight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flashlight")
+	float FlashlightIntensity = 8000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flashlight")
+	float FlashlightRange = 2000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flashlight")
+	float FlashlightInnerCone = 12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flashlight")
+	float FlashlightOuterCone = 30.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Flashlight")
+	bool bFlashlightAvailable = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Flashlight")
+	bool bFlashlightOn = false;
 
 	// ----- INTERACCIÓN -----
 	// Distancia máxima del trace de interacción (cm)

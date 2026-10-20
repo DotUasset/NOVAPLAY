@@ -2,6 +2,8 @@
 
 #include "NOVAPLAYCharacter.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "InputCoreTypes.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -64,6 +66,18 @@ ANOVAPLAYCharacter::ANOVAPLAYCharacter()
 	FollowCamera->SetRelativeLocation(FVector(0.0f, 0.0f, BaseEyeHeight));
 	FollowCamera->bUsePawnControlRotation = true; // ahora la camara rota con el control directamente
 	FollowCamera->FieldOfView = BaseFOV;
+
+	// Linterna: spotlight hijo de la camara, apagada y deshabilitada hasta que el nivel la active
+	Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Flashlight"));
+	Flashlight->SetupAttachment(FollowCamera);
+	Flashlight->SetRelativeLocation(FVector(20.0f, 12.0f, -10.0f));
+	Flashlight->SetIntensity(FlashlightIntensity);
+	Flashlight->SetAttenuationRadius(FlashlightRange);
+	Flashlight->SetInnerConeAngle(FlashlightInnerCone);
+	Flashlight->SetOuterConeAngle(FlashlightOuterCone);
+	Flashlight->SetMobility(EComponentMobility::Movable);
+	Flashlight->SetCastShadows(true);
+	Flashlight->SetVisibility(false);
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
@@ -151,6 +165,44 @@ void ANOVAPLAYCharacter::BeginPlay()
 		// emitimos con EmitAINoise (pasos, aterrizajes, etc.)
 		PerceptionStimuliSource->RegisterForSense(UAISense_Hearing::StaticClass());
 		PerceptionStimuliSource->RegisterWithPerceptionSystem();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Linterna
+
+void ANOVAPLAYCharacter::SetFlashlightAvailable(bool bAvailable)
+{
+	bFlashlightAvailable = bAvailable;
+
+	// Si la habilitan, arranca prendida (el jugador aparece en la oscuridad)
+	if (bAvailable)
+	{
+		bFlashlightOn = true;
+	}
+	else
+	{
+		bFlashlightOn = false;
+	}
+
+	if (Flashlight)
+	{
+		Flashlight->SetVisibility(bFlashlightOn);
+	}
+}
+
+void ANOVAPLAYCharacter::ToggleFlashlight()
+{
+	if (!bFlashlightAvailable || bIsCaught || bPauseMenuOpen || bInventoryOpen)
+	{
+		return;
+	}
+
+	bFlashlightOn = !bFlashlightOn;
+
+	if (Flashlight)
+	{
+		Flashlight->SetVisibility(bFlashlightOn);
 	}
 }
 
@@ -725,6 +777,10 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &ANOVAPLAYCharacter::StopSprint);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleCrouch);
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ANOVAPLAYCharacter::Interact);
+
+	// Linterna (tecla F). BindKey evita tener que crear el Action Mapping en Project Settings;
+	// si preferis, cambialo por BindAction("ToggleFlashlight", ...) y agrega el mapping.
+	PlayerInputComponent->BindKey(EKeys::F, IE_Pressed, this, &ANOVAPLAYCharacter::ToggleFlashlight);
 
 	// Abrir inventario
 	PlayerInputComponent->BindAction("ToggleInventory", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleInventory);

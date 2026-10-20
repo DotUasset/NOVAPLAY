@@ -10,6 +10,6 @@ public class NOVAPLAY : ModuleRules
 
 		// Se agregaron AIModule, GameplayTasks y NavigationSystem para soportar
 		// AIController + Behavior Tree + Blackboard + NavMesh (persecucion del docente)
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "AIModule", "GameplayTasks", "NavigationSystem" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "AIModule", "GameplayTasks", "NavigationSystem", "Slate", "SlateCore" });
 	}
 }
