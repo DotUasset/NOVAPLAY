@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -46,6 +46,8 @@ public:
 	void InitializeObjectives(class UNOVAPLAYObjectiveComponent* InObjectiveComponent);
 
 protected:
+	// Suelta los bindings a los componentes del personaje al destruirse el widget
+	virtual void NativeDestruct() override;
 
 	// BlueprintImplementableEvent: NO tiene cuerpo en C++.
 	// Vos lo "implementás" armando el nodo en el grafo del Widget Blueprint

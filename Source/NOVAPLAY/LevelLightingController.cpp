@@ -1,5 +1,7 @@
-#include "LevelLightingController.h"
+﻿#include "LevelLightingController.h"
 #include "PuzzleBase.h"
+#include "NOVAPLAY.h"
+#include "NOVAPLAYDebug.h"
 #include "Components/LightComponent.h"
 #include "Components/LightComponentBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -36,7 +38,7 @@ void ALevelLightingController::BeginPlay()
 
 			if (ULightComponent* Light = Cast<ULightComponent>(Comp))
 			{
-				Managed.bHasIntensity = true;
+				Managed.IntensityLight = Light;
 				Managed.TargetIntensity = Light->Intensity;
 			}
 
@@ -58,11 +60,12 @@ void ALevelLightingController::BeginPlay()
 	// 3) Escuchar el puzzle de las palancas
 	if (TriggerPuzzle)
 	{
-		TriggerPuzzle->OnPuzzleSolved.AddDynamic(this, &ALevelLightingController::HandlePuzzleSolved);
+		TriggerPuzzle->OnPuzzleSolved.AddUniqueDynamic(this, &ALevelLightingController::HandlePuzzleSolved);
 	}
-	else if (GEngine)
+	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::Red, TEXT("LevelLightingController sin TriggerPuzzle!"));
+		UE_LOG(LogNOVAPLAY, Warning, TEXT("%s: LevelLightingController sin TriggerPuzzle, las luces nunca van a volver."), *GetName());
+		NOVAPLAYDebug::ScreenMessage(TEXT("LevelLightingController sin TriggerPuzzle!"), FColor::Red, 8.0f);
 	}
 
 	// 4) Linterna
@@ -80,8 +83,16 @@ void ALevelLightingController::GiveFlashlightToPlayer()
 	}
 	else
 	{
-		// Por si el personaje todavia no existe en este frame: reintenta al siguiente
-		GetWorldTimerManager().SetTimerForNextTick(this, &ALevelLightingController::GiveFlashlightToPlayer);
+		// Por si el personaje todavia no existe en este frame: reintenta al siguiente (con tope,
+		// para no quedar reintentando para siempre si el pawn del jugador es de otra clase)
+		if (++FlashlightRetryCount <= MaxFlashlightRetries)
+		{
+			GetWorldTimerManager().SetTimerForNextTick(this, &ALevelLightingController::GiveFlashlightToPlayer);
+		}
+		else
+		{
+			UE_LOG(LogNOVAPLAY, Warning, TEXT("%s: no se encontro un ANOVAPLAYCharacter para darle la linterna."), *GetName());
+		}
 	}
 }
 
@@ -98,19 +109,23 @@ void ALevelLightingController::RestoreLights()
 	}
 	bLightsOn = true;
 
-	for (FManagedLight& Managed : ManagedLights)
+	for (const FManagedLight& Managed : ManagedLights)
 	{
-		if (!Managed.Component)
+		ULightComponentBase* Component = Managed.Component.Get();
+		if (!Component)
 		{
 			continue;
 		}
 
-		if (Managed.bHasIntensity && FadeInDuration > 0.0f)
+		if (FadeInDuration > 0.0f)
 		{
-			// Arranca en 0 y sube en Tick
-			Cast<ULightComponent>(Managed.Component)->SetIntensity(0.0f);
+			if (ULightComponent* Light = Managed.IntensityLight.Get())
+			{
+				// Arranca en 0 y sube en Tick
+				Light->SetIntensity(0.0f);
+			}
 		}
-		Managed.Component->SetVisibility(true);
+		Component->SetVisibility(true);
 	}
 
 	if (FadeInDuration > 0.0f)
@@ -160,11 +175,11 @@ void ALevelLightingController::Tick(float DeltaTime)
 	FadeElapsed += DeltaTime;
 	const float Alpha = FMath::Clamp(FadeElapsed / FMath::Max(FadeInDuration, KINDA_SMALL_NUMBER), 0.0f, 1.0f);
 
-	for (FManagedLight& Managed : ManagedLights)
+	for (const FManagedLight& Managed : ManagedLights)
 	{
-		if (Managed.Component && Managed.bHasIntensity)
+		if (ULightComponent* Light = Managed.IntensityLight.Get())
 		{
-			Cast<ULightComponent>(Managed.Component)->SetIntensity(Managed.TargetIntensity * Alpha);
+			Light->SetIntensity(Managed.TargetIntensity * Alpha);
 		}
 	}
 

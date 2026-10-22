@@ -1,6 +1,7 @@
-#include "InteractableBook.h"
+﻿#include "InteractableBook.h"
 #include "Components/StaticMeshComponent.h"
 #include "Puzzle_BookOrder.h"
+#include "NOVAPLAYDebug.h"
 
 AInteractableBook::AInteractableBook()
 {
@@ -13,11 +14,7 @@ AInteractableBook::AInteractableBook()
 
 void AInteractableBook::Interact_Implementation(APawn* InteractingPawn)
 {
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow,
-			FString::Printf(TEXT("Book %d interactuado"), BookID));
-	}
+	NOVAPLAYDebug::ScreenMessage(FString::Printf(TEXT("Book %d interactuado"), BookID));
 
 	if (OwningPuzzle)
 	{

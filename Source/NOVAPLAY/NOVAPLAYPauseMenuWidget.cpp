@@ -1,4 +1,5 @@
-#include "NOVAPLAYPauseMenuWidget.h"
+﻿#include "NOVAPLAYPauseMenuWidget.h"
+#include "Engine/Engine.h"
 #include "NOVAPLAYCharacter.h"
 #include "NOVAPLAYSettingsSave.h"
 #include "Kismet/GameplayStatics.h"
@@ -33,15 +34,16 @@ void UNOVAPLAYPauseMenuWidget::ResumeGame()
 {
 	SaveSettings();
 
-	UGameplayStatics::SetGamePaused(GetWorld(), false);
-
-	APlayerController* PC = GetOwningPlayer();
 	if (ANOVAPLAYCharacter* Character = GetOwningNOVAPLAYCharacter())
 	{
-		// El personaje maneja su propio flag bPauseMenuOpen y el input mode;
+		// El personaje maneja su propio flag bPauseMenuOpen y el input mode (y despausa);
 		// esto evita que el estado se desincronice si el jugador cierra desde un
 		// boton de la UI en vez de apretando Esc de vuelta
 		Character->ClosePauseMenu();
+	}
+	else
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
 	}
 
 	RemoveFromParent();

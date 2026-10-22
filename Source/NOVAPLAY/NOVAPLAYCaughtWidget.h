@@ -1,4 +1,4 @@
-// NOVAPLAY - Base en C++ de la pantalla de "Te atraparon". La crea y la muestra
+﻿// NOVAPLAY - Base en C++ de la pantalla de "Te atraparon". La crea y la muestra
 // ANOVAPLAYCharacter::ShowCaughtScreen() (llamada desde el Event Graph de BP_Teacher, evento
 // OnCaughtSequenceComplete), igual que el menu de pausa. El diseño visual y los botones para
 // ir a un nivel especifico se arman en un Blueprint hijo (WBP_CaughtScreen): cada boton de

@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Task generico: limpia una key del Blackboard (equivalente al "Clear Blackboard Value" que no existe nativo en 4.27)
+﻿// NOVAPLAY - BT Task generico: limpia una key del Blackboard (equivalente al "Clear Blackboard Value" que no existe nativo en 4.27)
 
 #pragma once
 

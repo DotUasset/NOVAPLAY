@@ -1,4 +1,4 @@
-// NOVAPLAY - AIController del docente: corre el Behavior Tree y detecta al jugador por
+﻿// NOVAPLAY - AIController del docente: corre el Behavior Tree y detecta al jugador por
 // vision Y por oido, con deteccion gradual (no instantanea) en vez de un simple bool.
 
 #include "TeacherAIController.h"
@@ -24,8 +24,10 @@ const FName ATeacherAIController::BBKey_PatrolPoint(TEXT("PatrolPoint"));
 ATeacherAIController::ATeacherAIController()
 {
 	// Necesitamos Tick solo para el dibujo de debug (bDrawDebugPerception). Toda la logica
-	// real de deteccion corre por timer (DetectionTimerHandle), no en Tick.
+	// real de deteccion corre por timer (DetectionTimerHandle), no en Tick. Por eso arranca
+	// apagado y BeginPlay lo prende unicamente si el debug esta activado.
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerceptionComp"));
 
@@ -97,11 +99,22 @@ void ATeacherAIController::OnPossess(APawn* InPawn)
 	// controller vuelve a poseer un pawn, para no arrancar con sospecha de la partida anterior.
 	bRawSightThisFrame = false;
 	bIsAlerted = false;
+	LastSensedPlayer.Reset();
 	SightSuspicionTime = 0.0f;
+	CurrentTimeToDetect = TimeToDetectSight;
 	TimeSinceLastEvidence = 0.0f;
 	CurrentAwareness = ETeacherAwarenessState::Unaware;
 
 	GetWorldTimerManager().SetTimer(DetectionTimerHandle, this, &ATeacherAIController::UpdateDetectionState, FMath::Max(DetectionTickInterval, 0.02f), true);
+}
+
+void ATeacherAIController::BeginPlay()
+{
+	Super::BeginPlay();
+
+#if !UE_BUILD_SHIPPING
+	SetActorTickEnabled(bDrawDebugPerception);
+#endif
 }
 
 void ATeacherAIController::OnUnPossess()
@@ -262,6 +275,7 @@ void ATeacherAIController::UpdateDetectionState()
 		}
 
 		const float EffectiveTimeToDetect = FMath::Max(TimeToDetectSight * Speedup, 0.05f);
+		CurrentTimeToDetect = EffectiveTimeToDetect;
 		SightSuspicionTime = FMath::Min(SightSuspicionTime + DeltaTime, EffectiveTimeToDetect);
 		TimeSinceLastEvidence = 0.0f;
 
@@ -295,6 +309,7 @@ void ATeacherAIController::UpdateDetectionState()
 		// No lo ve en este instante: la sospecha decae con el tiempo (un vistazo corto y
 		// aislado se termina olvidando en vez de sumar para siempre).
 		SightSuspicionTime = FMath::Max(SightSuspicionTime - SightSuspicionDecayRate * DeltaTime, 0.0f);
+		CurrentTimeToDetect = TimeToDetectSight;
 
 		if (bIsAlerted)
 		{

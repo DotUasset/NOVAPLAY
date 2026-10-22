@@ -1,4 +1,7 @@
-#include "Puzzle_ItemCombination.h"
+﻿#include "Puzzle_ItemCombination.h"
+#include "GameFramework/Pawn.h"
+#include "NOVAPLAY.h"
+#include "NOVAPLAYDebug.h"
 #include "NOVAPLAYInventoryComponent.h"
 
 bool APuzzle_ItemCombination::TryCombine(APawn* InteractingPawn)
@@ -8,32 +11,26 @@ bool APuzzle_ItemCombination::TryCombine(APawn* InteractingPawn)
 		return false;
 	}
 
-	UNOVAPLAYInventoryComponent* Inventory = InteractingPawn->FindComponentByClass<UNOVAPLAYInventoryComponent>();
-
-	if (!Inventory)
+	if (RequiredItemID.IsNone())
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Pawn sin InventoryComponent"));
-		}
+		UE_LOG(LogNOVAPLAY, Warning, TEXT("%s: RequiredItemID no esta configurado."), *GetName());
 		return false;
 	}
 
-	if (Inventory->HasItem(RequiredItemID))
+	UNOVAPLAYInventoryComponent* Inventory = InteractingPawn->FindComponentByClass<UNOVAPLAYInventoryComponent>();
+	if (!Inventory)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Item correcto, resolviendo"));
-		}
-		OnSolved();
-		return true;
+		NOVAPLAYDebug::ScreenMessage(TEXT("Pawn sin InventoryComponent"), FColor::Red);
+		return false;
 	}
-	else
+
+	if (!Inventory->HasItem(RequiredItemID))
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("No tenes el item necesario"));
-		}
+		NOVAPLAYDebug::ScreenMessage(TEXT("No tenes el item necesario"), FColor::Red);
+		return false;
 	}
-	return false;
+
+	NOVAPLAYDebug::ScreenMessage(TEXT("Item correcto, resolviendo"), FColor::Green);
+	OnSolved();
+	return true;
 }

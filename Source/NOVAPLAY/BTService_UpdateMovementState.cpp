@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion/
+﻿// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion/
 // investigacion) y le avisa a Blueprint (OnMovementStateChanged) que estado tiene ahora,
 // para que el Event Graph de BP_Teacher decida sonido y mensajes de debug.
 
@@ -15,6 +15,7 @@ UBTService_UpdateMovementState::UBTService_UpdateMovementState()
 
 	// Corre seguido: es una comprobacion barata y necesitamos reaccionar rapido
 	// apenas el docente ve o pierde al jugador.
+	bNotifyTick = true;
 	Interval = 0.15f;
 	RandomDeviation = 0.03f;
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -26,7 +26,7 @@ public:
 	void CheckSolution();
 	virtual void CheckSolution_Implementation();
 
-	// Llamable desde C++ o BP cuando se cumple la condici�n de victoria
+	// Llamable desde C++ o BP cuando se cumple la condición de victoria
 	UFUNCTION(BlueprintCallable, Category = "Puzzle")
 	void OnSolved();
 

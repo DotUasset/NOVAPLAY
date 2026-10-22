@@ -1,4 +1,4 @@
-#include "PuzzleBase.h"
+ï»¿#include "PuzzleBase.h"
 
 APuzzleBase::APuzzleBase()
 {
@@ -7,7 +7,7 @@ APuzzleBase::APuzzleBase()
 
 void APuzzleBase::CheckSolution_Implementation()
 {
-	// Vacío a propósito: cada hijo define su propia condición
+	// VacÃ­o a propÃ³sito: cada hijo define su propia condiciÃ³n
 }
 
 void APuzzleBase::OnSolved()

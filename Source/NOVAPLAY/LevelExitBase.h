@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -42,6 +42,9 @@ protected:
 	void HandlePuzzleSolved(APuzzleBase* SolvedPuzzle);
 
 	void CheckAllSolved();
+
+	/** Arranca la secuencia de salida si OtherActor es el jugador y la salida esta abierta. */
+	void TryBeginExitSequence(AActor* OtherActor);
 
 	UFUNCTION()
 	void OnExitTriggerOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,

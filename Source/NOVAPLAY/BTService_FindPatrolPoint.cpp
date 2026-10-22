@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Service: elige el siguiente punto de patrulla y lo escribe en el Blackboard
+﻿// NOVAPLAY - BT Service: elige el siguiente punto de patrulla y lo escribe en el Blackboard
 
 #include "BTService_FindPatrolPoint.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -12,9 +12,9 @@ UBTService_FindPatrolPoint::UBTService_FindPatrolPoint()
 {
 	NodeName = TEXT("Elegir Punto de Patrulla");
 
-	// Solo necesita evaluar al entrar a la rama, no en cada tick
+	// Solo necesita evaluar al entrar a la rama: no hace falta tickear el service
 	bNotifyBecomeRelevant = true;
-	Interval = 1.0f;
+	bNotifyTick = false;
 }
 
 void UBTService_FindPatrolPoint::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)

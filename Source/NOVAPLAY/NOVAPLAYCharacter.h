@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,7 +29,7 @@ public:
 
 	// Getter para que la UI (Blueprint) pueda leer el % de stamina
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
-	float GetStaminaPercent() const { return CurrentStamina / MaxStamina; }
+	float GetStaminaPercent() const { return MaxStamina > 0.0f ? CurrentStamina / MaxStamina : 0.0f; }
 
 	// Progreso de agachado, ya suavizado (0 = parado, 1 = agachado del todo). Pensado para
 	// que el Anim Blueprint lo lea (Get Owning Actor -> Cast -> este getter) y lo use en un
@@ -144,6 +144,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Stamina")
 	float CurrentStamina;
 
+	// Ultimo porcentaje enviado al HUD: evita disparar el evento de Blueprint en cada frame
+	// cuando la stamina no cambio (llena y en reposo, que es la mayor parte del tiempo)
+	float LastReportedStaminaPercent = -1.0f;
+
+	void ReportStaminaToHUD();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stamina")
 	float StaminaDrainRate = 20.0f; // por segundo, mientras corre
 
@@ -173,6 +179,10 @@ protected:
 	float JumpBufferTime = 0.15f;
 
 	float TimeSinceLeftGround = 0.0f;
+
+	// true desde que se salta hasta que se aterriza. Sin esto, el coyote time (que solo mira
+	// cuanto hace que se dejo el piso) permitia un segundo salto en el aire justo despues de saltar.
+	bool bHasJumpedSinceGrounded = false;
 	float TimeSinceJumpPressed = -1.0f; // -1 = no hay ningun salto pendiente en el buffer
 
 	void UpdateJumpGravity();
@@ -285,8 +295,18 @@ protected:
 	UPROPERTY()
 	AActor* FocusedInteractable = nullptr;
 
+	// Texto del prompt que se muestra al apuntar a un interactuable
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	FText InteractionPromptText = NSLOCTEXT("NOVAPLAY", "InteractionPrompt", "Presiona E para interactuar");
+
 	// Hace el trace desde la cámara cada frame y actualiza FocusedInteractable + el prompt del HUD
 	void PerformInteractionTrace();
+
+	// Cambia el actor enfocado y actualiza el prompt del HUD (no hace nada si no cambio)
+	void SetFocusedInteractable(AActor* NewFocus);
+
+	// true si el jugador esta en un menu / pantalla que bloquea las acciones de gameplay
+	bool IsGameplayInputBlocked() const { return bIsCaught || bPauseMenuOpen || bInventoryOpen; }
 
 	// se llama todos los frames para manejar el drain/regen de stamina
 	void UpdateStamina(float DeltaTime);

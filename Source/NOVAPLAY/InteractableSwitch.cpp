@@ -1,6 +1,7 @@
-#include "InteractableSwitch.h"
+﻿#include "InteractableSwitch.h"
 #include "Components/StaticMeshComponent.h"
 #include "Puzzle_LeverCount.h"
+#include "NOVAPLAYDebug.h"
 
 AInteractableSwitch::AInteractableSwitch()
 {
@@ -22,10 +23,7 @@ void AInteractableSwitch::Interact_Implementation(APawn* InteractingPawn)
 
 	if (!OwningPuzzle)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Switch sin OwningPuzzle asignado!"));
-		}
+		NOVAPLAYDebug::ScreenMessage(TEXT("Switch sin OwningPuzzle asignado!"), FColor::Red, 5.0f);
 		return;
 	}
 

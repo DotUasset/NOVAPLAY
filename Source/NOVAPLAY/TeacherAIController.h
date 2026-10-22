@@ -1,4 +1,4 @@
-// NOVAPLAY - AIController del docente: corre el Behavior Tree y detecta al jugador por
+﻿// NOVAPLAY - AIController del docente: corre el Behavior Tree y detecta al jugador por
 // vision Y por oido, con deteccion gradual (no instantanea) en vez de un simple bool.
 
 #pragma once
@@ -109,7 +109,7 @@ public:
 	// medidor en el HUD/debug. No es la fuente de verdad del Behavior Tree (esa sigue siendo
 	// bCanSeePlayer/LastKnownLocation en el Blackboard); es solo para UI y ajuste fino.
 	UFUNCTION(BlueprintPure, Category = "AI|Deteccion")
-	float GetSuspicionRatio() const { return TimeToDetectSight > 0.0f ? FMath::Clamp(SightSuspicionTime / TimeToDetectSight, 0.0f, 1.0f) : (SightSuspicionTime > 0.0f ? 1.0f : 0.0f); }
+	float GetSuspicionRatio() const { return CurrentTimeToDetect > 0.0f ? FMath::Clamp(SightSuspicionTime / CurrentTimeToDetect, 0.0f, 1.0f) : (SightSuspicionTime > 0.0f ? 1.0f : 0.0f); }
 
 	UFUNCTION(BlueprintPure, Category = "AI|Deteccion")
 	ETeacherAwarenessState GetAwarenessState() const { return CurrentAwareness; }
@@ -117,6 +117,7 @@ public:
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, Category = "AI", meta = (AllowPrivateAccess = "true"))
@@ -160,6 +161,10 @@ protected:
 	// Segundos acumulados de vision continua (con decaimiento cuando no lo ve). Cuando llega
 	// a TimeToDetectSight, se confirma la deteccion (Alerted).
 	float SightSuspicionTime = 0.0f;
+
+	// Tiempo de confirmacion vigente (TimeToDetectSight, ya reducido si el jugador esta muy cerca).
+	// Se guarda para que GetSuspicionRatio llegue a 1.0 tambien en la deteccion a corta distancia.
+	float CurrentTimeToDetect = 0.0f;
 
 	// Segundos transcurridos desde la ultima vez que hubo novedades (vision o sonido) mientras
 	// se esta investigando/persiguiendo. Al superar ForgetInvestigationAfterSeconds, se limpia

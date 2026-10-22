@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Service: elige el siguiente punto de patrulla y lo escribe en el Blackboard.
+﻿// NOVAPLAY - BT Service: elige el siguiente punto de patrulla y lo escribe en el Blackboard.
 // Esto es lo que faltaba: la key "PatrolPoint" nunca se seteaba desde ningun lado, por eso
 // la rama "Patrullar" (Move To: PatrolPoint) fallaba siempre y el docente no patrullaba.
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -64,16 +64,22 @@ protected:
 	void HandlePuzzleSolved(APuzzleBase* SolvedPuzzle);
 
 private:
+	// Punteros debiles: los LightActors pueden destruirse durante el nivel y esta estructura
+	// no es visible para el GC (no es UPROPERTY), asi que un puntero crudo quedaria colgando.
 	struct FManagedLight
 	{
-		ULightComponentBase* Component = nullptr;
+		TWeakObjectPtr<ULightComponentBase> Component;
+		TWeakObjectPtr<ULightComponent> IntensityLight; // valido solo si se puede hacer fade de intensidad
 		float TargetIntensity = 0.0f;
-		bool bHasIntensity = false; // true si es ULightComponent (se puede hacer fade)
 	};
 
 	TArray<FManagedLight> ManagedLights;
 	float FadeElapsed = 0.0f;
 	bool bFading = false;
+
+	// Reintentos de GiveFlashlightToPlayer (el personaje puede no existir todavia en el primer frame)
+	int32 FlashlightRetryCount = 0;
+	static constexpr int32 MaxFlashlightRetries = 120;
 
 	void GiveFlashlightToPlayer();
 	void RestoreLights();

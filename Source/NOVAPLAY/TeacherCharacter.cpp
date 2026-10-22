@@ -1,4 +1,4 @@
-// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador
+﻿// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador
 
 #include "TeacherCharacter.h"
 #include "Components/SphereComponent.h"
@@ -42,7 +42,7 @@ void ATeacherCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	CatchSphere->SetSphereRadius(CatchRadius);
-	CatchSphere->OnComponentBeginOverlap.AddDynamic(this, &ATeacherCharacter::OnCatchOverlap);
+	CatchSphere->OnComponentBeginOverlap.AddUniqueDynamic(this, &ATeacherCharacter::OnCatchOverlap);
 
 	// Arranca en velocidad/estado de patrulla desde el primer frame
 	SetMovementState(false);
@@ -86,27 +86,31 @@ void ATeacherCharacter::NotifyAwarenessState(ETeacherAwarenessState NewState)
 
 AActor* ATeacherCharacter::GetNextPatrolPoint()
 {
-	if (PatrolPoints.Num() == 0)
+	// Slots vacios del array (un actor borrado del nivel, un elemento sin asignar) se saltean:
+	// antes devolvian nullptr y el service caia al punto aleatorio aunque hubiera otros validos.
+	const int32 NumPoints = PatrolPoints.Num();
+	for (int32 Attempt = 0; Attempt < NumPoints; ++Attempt)
 	{
-		return nullptr;
-	}
-
-	if (bPatrolInOrder || PatrolPoints.Num() == 1)
-	{
-		CurrentPatrolIndex = (CurrentPatrolIndex + 1) % PatrolPoints.Num();
-	}
-	else
-	{
-		// Elige un indice distinto al actual, para no repetir el mismo punto dos veces seguidas
-		int32 NewIndex = CurrentPatrolIndex;
-		while (NewIndex == CurrentPatrolIndex)
+		if (bPatrolInOrder || NumPoints == 1)
 		{
-			NewIndex = FMath::RandRange(0, PatrolPoints.Num() - 1);
+			CurrentPatrolIndex = (CurrentPatrolIndex + 1) % NumPoints;
 		}
-		CurrentPatrolIndex = NewIndex;
+		else
+		{
+			// Elige un indice distinto al actual (si hay mas de uno), para no repetir el mismo
+			// punto dos veces seguidas. Sin bucle "while": no puede colgarse.
+			CurrentPatrolIndex = (CurrentPatrolIndex < 0)
+				? FMath::RandRange(0, NumPoints - 1)
+				: (CurrentPatrolIndex + FMath::RandRange(1, NumPoints - 1)) % NumPoints;
+		}
+
+		if (AActor* Point = PatrolPoints[CurrentPatrolIndex])
+		{
+			return Point;
+		}
 	}
 
-	return PatrolPoints.IsValidIndex(CurrentPatrolIndex) ? PatrolPoints[CurrentPatrolIndex] : nullptr;
+	return nullptr;
 }
 
 void ATeacherCharacter::OnCatchOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -134,6 +138,12 @@ void ATeacherCharacter::OnCatchOverlap(UPrimitiveComponent* OverlappedComp, AAct
 			GetWorldTimerManager().SetTimer(CatchTimerHandle, this, &ATeacherCharacter::HandleCatchDelayFinished, CatchDelay, false);
 		}
 	}
+}
+
+void ATeacherCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(CatchTimerHandle);
+	Super::EndPlay(EndPlayReason);
 }
 
 void ATeacherCharacter::HandleCatchDelayFinished()

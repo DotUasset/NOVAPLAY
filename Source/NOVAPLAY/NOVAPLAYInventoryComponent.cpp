@@ -1,4 +1,4 @@
-// NOVAPLAYInventoryComponent.cpp
+﻿// NOVAPLAYInventoryComponent.cpp
 #include "NOVAPLAYInventoryComponent.h"
 
 UNOVAPLAYInventoryComponent::UNOVAPLAYInventoryComponent()

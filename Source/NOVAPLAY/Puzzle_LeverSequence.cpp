@@ -1,5 +1,6 @@
-#include "Puzzle_LeverSequence.h"
+﻿#include "Puzzle_LeverSequence.h"
 #include "InteractableLever.h"
+#include "NOVAPLAYDebug.h"
 
 void APuzzle_LeverSequence::RegisterLever(AInteractableLever* Lever)
 {
@@ -31,63 +32,34 @@ void APuzzle_LeverSequence::ActivateLever(int32 LeverIndex, AInteractableLever* 
 
 	if (CurrentSequence.Num() > CorrectSequence.Num())
 	{
-		CurrentSequence.Empty();
+		CurrentSequence.Reset();
 		CurrentSequence.Add(LeverIndex);
 	}
 
-	if (GEngine)
+#if !UE_BUILD_SHIPPING
+	FString Debug = TEXT("Secuencia actual: ");
+	for (const int32 Val : CurrentSequence)
 	{
-		FString Debug = TEXT("Secuencia actual: ");
-		for (int32 Val : CurrentSequence)
-		{
-			Debug += FString::Printf(TEXT("%d "), Val);
-		}
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Cyan, Debug);
+		Debug += FString::Printf(TEXT("%d "), Val);
 	}
+	NOVAPLAYDebug::ScreenMessage(Debug, FColor::Cyan);
+#endif
 
+	// Si la secuencia todavia no esta completa, la palanca solo se anima como activada.
+	// Si esta completa, la palanca se anima SOLO cuando era la correcta (si no, se resetea todo).
 	const bool bReachedFullLength = (CurrentSequence.Num() == CorrectSequence.Num());
-
-	if (!bReachedFullLength)
+	if (!bReachedFullLength || CurrentSequence == CorrectSequence)
 	{
 		if (Lever)
 		{
 			Lever->OnLeverActivated();
 		}
-		return;
 	}
 
-	bool bCorrect = true;
-	for (int32 i = 0; i < CorrectSequence.Num(); i++)
+	if (bReachedFullLength)
 	{
-		if (CurrentSequence[i] != CorrectSequence[i])
-		{
-			bCorrect = false;
-			break;
-		}
-	}
-
-	if (bCorrect)
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("PUZZLE RESUELTO"));
-		}
-
-		if (Lever)
-		{
-			Lever->OnLeverActivated();
-		}
-		OnSolved();
-	}
-	else
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Secuencia incorrecta, reinicia"));
-		}
-
-		CurrentSequence.Empty();
-		ResetAllLevers();
+		// Misma logica de validacion que usa CheckSolution (puede sobrescribirse en Blueprint)
+		CheckSolution();
 	}
 }
 
@@ -98,24 +70,14 @@ void APuzzle_LeverSequence::CheckSolution_Implementation()
 		return;
 	}
 
-	for (int32 i = 0; i < CorrectSequence.Num(); i++)
+	if (CurrentSequence != CorrectSequence)
 	{
-		if (CurrentSequence[i] != CorrectSequence[i])
-		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Secuencia incorrecta, reinicia"));
-			}
-			CurrentSequence.Empty();
-			ResetAllLevers();
-			return;
-		}
+		NOVAPLAYDebug::ScreenMessage(TEXT("Secuencia incorrecta, reinicia"), FColor::Red);
+		CurrentSequence.Reset();
+		ResetAllLevers();
+		return;
 	}
 
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("PUZZLE RESUELTO"));
-	}
-
+	NOVAPLAYDebug::ScreenMessage(TEXT("PUZZLE RESUELTO"), FColor::Green, 5.0f);
 	OnSolved();
 }

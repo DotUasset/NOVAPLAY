@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NOVAPLAYCharacter.h"
 #include "Camera/CameraComponent.h"
@@ -176,14 +176,7 @@ void ANOVAPLAYCharacter::SetFlashlightAvailable(bool bAvailable)
 	bFlashlightAvailable = bAvailable;
 
 	// Si la habilitan, arranca prendida (el jugador aparece en la oscuridad)
-	if (bAvailable)
-	{
-		bFlashlightOn = true;
-	}
-	else
-	{
-		bFlashlightOn = false;
-	}
+	bFlashlightOn = bAvailable;
 
 	if (Flashlight)
 	{
@@ -226,7 +219,7 @@ void ANOVAPLAYCharacter::Tick(float DeltaTime)
 	UpdateCameraFeel(DeltaTime);
 	UpdateFootstepNoise(DeltaTime);
 
-	if (!bInventoryOpen)
+	if (!IsGameplayInputBlocked())
 	{
 		PerformInteractionTrace();
 	}
@@ -252,9 +245,16 @@ void ANOVAPLAYCharacter::UpdateStamina(float DeltaTime)
 		CurrentStamina = FMath::Min(CurrentStamina, MaxStamina);
 	}
 
-	if (HUDWidgetInstance)
+	ReportStaminaToHUD();
+}
+
+void ANOVAPLAYCharacter::ReportStaminaToHUD()
+{
+	const float Percent = GetStaminaPercent();
+	if (HUDWidgetInstance && !FMath::IsNearlyEqual(Percent, LastReportedStaminaPercent, KINDA_SMALL_NUMBER))
 	{
-		HUDWidgetInstance->UpdateStaminaBar(GetStaminaPercent());
+		LastReportedStaminaPercent = Percent;
+		HUDWidgetInstance->UpdateStaminaBar(Percent);
 	}
 }
 
@@ -265,13 +265,11 @@ void ANOVAPLAYCharacter::UpdateJumpGravity()
 {
 	// Mientras sube usa una gravedad, mientras cae otra mas fuerte -> el salto
 	// se siente ágil arriba y "seco" al aterrizar, en vez de flotante y lento.
-	if (GetCharacterMovement()->Velocity.Z < 0.0f)
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	const float DesiredScale = (MoveComp->Velocity.Z < 0.0f) ? FallingGravityScale : RisingGravityScale;
+	if (!FMath::IsNearlyEqual(MoveComp->GravityScale, DesiredScale))
 	{
-		GetCharacterMovement()->GravityScale = FallingGravityScale;
-	}
-	else
-	{
-		GetCharacterMovement()->GravityScale = RisingGravityScale;
+		MoveComp->GravityScale = DesiredScale;
 	}
 }
 
@@ -282,6 +280,8 @@ void ANOVAPLAYCharacter::UpdateJumpAssist(float DeltaTime)
 	if (bGroundedNow)
 	{
 		TimeSinceLeftGround = 0.0f;
+		// Nota: bHasJumpedSinceGrounded NO se limpia aca sino en Landed(): el salto se ejecuta
+		// en el siguiente movimiento del CharacterMovement y este frame todavia "esta en el piso".
 	}
 	else
 	{
@@ -308,7 +308,7 @@ void ANOVAPLAYCharacter::UpdateJumpAssist(float DeltaTime)
 void ANOVAPLAYCharacter::TryConsumeJump()
 {
 	const bool bGrounded = GetCharacterMovement()->IsMovingOnGround();
-	const bool bWithinCoyoteWindow = !bGrounded && (TimeSinceLeftGround <= CoyoteTime);
+	const bool bWithinCoyoteWindow = !bGrounded && !bHasJumpedSinceGrounded && (TimeSinceLeftGround <= CoyoteTime);
 
 	if (!bGrounded && !bWithinCoyoteWindow)
 	{
@@ -321,11 +321,7 @@ void ANOVAPLAYCharacter::TryConsumeJump()
 	{
 		CurrentStamina -= JumpStaminaCost;
 		CurrentStamina = FMath::Max(CurrentStamina, 0.0f);
-
-		if (HUDWidgetInstance)
-		{
-			HUDWidgetInstance->UpdateStaminaBar(GetStaminaPercent());
-		}
+		ReportStaminaToHUD();
 
 		if (CurrentStamina <= 0.0f)
 		{
@@ -346,6 +342,7 @@ void ANOVAPLAYCharacter::TryConsumeJump()
 		GetCharacterMovement()->Velocity = NewVelocity;
 	}
 
+	bHasJumpedSinceGrounded = true;
 	TimeSinceJumpPressed = -1.0f; // consumido: ya no queda pendiente
 }
 
@@ -420,6 +417,8 @@ void ANOVAPLAYCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
 
+	bHasJumpedSinceGrounded = false;
+
 	// La camara se hunde de golpe y UpdateCameraFeel la recupera sola, frame a frame
 	CurrentLandingOffset = -LandingDipStrength;
 
@@ -477,7 +476,7 @@ void ANOVAPLAYCharacter::UpdateFootstepNoise(float DeltaTime)
 
 void ANOVAPLAYCharacter::StartSprint()
 {
-	if (bInventoryOpen)
+	if (IsGameplayInputBlocked())
 	{
 		return;
 	}
@@ -494,7 +493,7 @@ void ANOVAPLAYCharacter::StopSprint()
 
 void ANOVAPLAYCharacter::ToggleCrouch()
 {
-	if (bInventoryOpen)
+	if (IsGameplayInputBlocked())
 	{
 		return;
 	}
@@ -517,7 +516,7 @@ void ANOVAPLAYCharacter::ToggleCrouch()
 
 void ANOVAPLAYCharacter::HandleJumpInput()
 {
-	if (bInventoryOpen)
+	if (IsGameplayInputBlocked())
 	{
 		return;
 	}
@@ -558,32 +557,38 @@ void ANOVAPLAYCharacter::PerformInteractionTrace()
 	const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility, SphereShape, Params);
 
 	AActor* NewFocus = nullptr;
-
 	if (bHit && Hit.GetActor() && Hit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 	{
 		NewFocus = Hit.GetActor();
 	}
 
-	if (NewFocus != FocusedInteractable)
-	{
-		FocusedInteractable = NewFocus;
+	SetFocusedInteractable(NewFocus);
+}
 
-		if (HUDWidgetInstance)
-		{
-			const bool bShowPrompt = (FocusedInteractable != nullptr);
-			HUDWidgetInstance->SetInteractionPrompt(bShowPrompt, FText::FromString(TEXT("Presiona E para interactuar")), FocusedInteractable);
-		}
+void ANOVAPLAYCharacter::SetFocusedInteractable(AActor* NewFocus)
+{
+	if (NewFocus == FocusedInteractable)
+	{
+		return;
+	}
+
+	FocusedInteractable = NewFocus;
+
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->SetInteractionPrompt(FocusedInteractable != nullptr, InteractionPromptText, FocusedInteractable);
 	}
 }
 
 void ANOVAPLAYCharacter::Interact()
 {
-	if (bInventoryOpen)
+	if (IsGameplayInputBlocked())
 	{
 		return;
 	}
 
-	if (FocusedInteractable && FocusedInteractable->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
+	// IsValid cubre al actor ya destruido (ej: un item recogido este mismo frame)
+	if (IsValid(FocusedInteractable) && FocusedInteractable->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 	{
 		IInteractable::Execute_Interact(FocusedInteractable, this);
 	}
@@ -591,16 +596,26 @@ void ANOVAPLAYCharacter::Interact()
 
 void ANOVAPLAYCharacter::ToggleInventory()
 {
-	bInventoryOpen = !bInventoryOpen;
+	// No se abre/cierra el inventario encima de la pausa o de la pantalla de "atrapado"
+	if (bIsCaught || bPauseMenuOpen)
+	{
+		return;
+	}
 
+	// El PC se valida ANTES de cambiar el flag: antes el flag se invertia igual y, sin controller,
+	// quedaba desincronizado con la UI real.
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC)
 	{
 		return;
 	}
 
+	bInventoryOpen = !bInventoryOpen;
+
 	if (bInventoryOpen)
 	{
+		// El prompt "Presiona E" no tiene sentido con el inventario abierto (el trace se pausa)
+		SetFocusedInteractable(nullptr);
 		// Bloqueamos movimiento y cámara mientras el inventario está abierto
 		PC->SetIgnoreMoveInput(true);
 		PC->SetIgnoreLookInput(true);
@@ -639,6 +654,12 @@ void ANOVAPLAYCharacter::ToggleInventory()
 
 void ANOVAPLAYCharacter::TogglePauseMenu()
 {
+	// La pantalla de "atrapado" tiene prioridad: no se puede abrir/cerrar la pausa encima
+	if (bIsCaught)
+	{
+		return;
+	}
+
 	// Si el inventario esta abierto, Esc lo cierra a ese primero en vez de
 	// abrir la pausa encima -- evita que se pisen los dos bloqueos de input
 	if (bInventoryOpen && !bPauseMenuOpen)
@@ -647,13 +668,13 @@ void ANOVAPLAYCharacter::TogglePauseMenu()
 		return;
 	}
 
-	bPauseMenuOpen = !bPauseMenuOpen;
-
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC)
 	{
 		return;
 	}
+
+	bPauseMenuOpen = !bPauseMenuOpen;
 
 	if (bPauseMenuOpen)
 	{
@@ -712,18 +733,23 @@ void ANOVAPLAYCharacter::ShowCaughtScreen()
 	{
 		return; // ya se esta mostrando, evita crear el widget dos veces
 	}
-	bIsCaught = true;
-
 	// Si por alguna razon la pausa o el inventario estaban abiertos, los cerramos primero
-	// para que no queden dos bloqueos de input pisandose entre si.
+	// para que no queden dos bloqueos de input pisandose entre si. Esto va ANTES de marcar
+	// bIsCaught: ToggleInventory/TogglePauseMenu se niegan a actuar una vez que esta en true.
 	if (bPauseMenuOpen)
 	{
 		ClosePauseMenu();
 	}
+
 	if (bInventoryOpen)
 	{
 		ToggleInventory();
 	}
+
+	bIsCaught = true;
+
+	// El prompt "Presiona E" no debe quedar visible sobre la pantalla de derrota
+	SetFocusedInteractable(nullptr);
 
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC)
@@ -786,7 +812,10 @@ void ANOVAPLAYCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("ToggleInventory", IE_Pressed, this, &ANOVAPLAYCharacter::ToggleInventory);
 
 	// Menu de pausa (Esc)
-	PlayerInputComponent->BindAction("TogglePause", IE_Pressed, this, &ANOVAPLAYCharacter::TogglePauseMenu);
+	// bExecuteWhenPaused: sin esto el binding no se ejecuta con el juego pausado, o sea que Esc
+	// podia abrir la pausa pero nunca cerrarla (solo el boton "Reanudar" del widget).
+	FInputActionBinding& PauseBinding = PlayerInputComponent->BindAction("TogglePause", IE_Pressed, this, &ANOVAPLAYCharacter::TogglePauseMenu);
+	PauseBinding.bExecuteWhenPaused = true;
 }
 
 void ANOVAPLAYCharacter::Turn(float Value)

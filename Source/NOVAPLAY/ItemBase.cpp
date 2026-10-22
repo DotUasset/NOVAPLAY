@@ -1,6 +1,10 @@
-// ItemBase.cpp
+ï»¿// ItemBase.cpp
+
 #include "ItemBase.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameFramework/Pawn.h"
+#include "NOVAPLAY.h"
+#include "NOVAPLAYDebug.h"
 #include "NOVAPLAYInventoryComponent.h"
 
 AItemBase::AItemBase()
@@ -11,7 +15,7 @@ AItemBase::AItemBase()
 	RootComponent = ItemMesh;
 
 	// Nos aseguramos de que el mesh bloquee todos los canales,
-	// incluido Visibility (el que usa el trace de interacción).
+	// incluido Visibility (el que usa el trace de interaccion).
 	ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	ItemMesh->SetCollisionResponseToAllChannels(ECR_Block);
 }
@@ -29,35 +33,20 @@ void AItemBase::Interact_Implementation(APawn* InteractingPawn)
 	}
 
 	UNOVAPLAYInventoryComponent* Inventory = InteractingPawn->FindComponentByClass<UNOVAPLAYInventoryComponent>();
-
-	if (Inventory)
+	if (!Inventory)
 	{
-		const bool bAdded = Inventory->AddItem(ItemID, ItemName, ItemIcon, ItemDescription, 1);
-
-		if (bAdded)
-		{
-			UE_LOG(LogTemp, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
-
-			if (bAdded)
-			{
-				UE_LOG(LogTemp, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
-
-				if (GEngine)
-				{
-					const FString Msg = FString::Printf(TEXT("Agregado: %s"), *ItemName.ToString());
-					GEngine->AddOnScreenDebugMessage(4, 3.0f, FColor::Green, Msg);
-				}
-
-				Destroy();
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("No se pudo agregar %s al inventario"), *ItemID.ToString());
-		}
+		UE_LOG(LogNOVAPLAY, Warning, TEXT("%s: el pawn que interactuo no tiene InventoryComponent"), *GetName());
+		return;
 	}
-	else
+
+	if (!Inventory->AddItem(ItemID, ItemName, ItemIcon, ItemDescription, 1))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("El pawn que interactuo no tiene InventoryComponent"));
+		UE_LOG(LogNOVAPLAY, Warning, TEXT("%s: no se pudo agregar '%s' al inventario (ItemID vacio?)"), *GetName(), *ItemID.ToString());
+		return;
 	}
+
+	UE_LOG(LogNOVAPLAY, Log, TEXT("Item %s agregado al inventario"), *ItemID.ToString());
+	NOVAPLAYDebug::ScreenMessage(FString::Printf(TEXT("Agregado: %s"), *ItemName.ToString()), FColor::Green, 3.0f, 4);
+
+	Destroy();
 }

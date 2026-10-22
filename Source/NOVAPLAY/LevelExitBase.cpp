@@ -1,4 +1,4 @@
-#include "LevelExitBase.h"
+﻿#include "LevelExitBase.h"
 #include "PuzzleBase.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -26,11 +26,18 @@ void ALevelExitBase::BeginPlay()
 	{
 		if (Puzzle)
 		{
-			Puzzle->OnPuzzleSolved.AddDynamic(this, &ALevelExitBase::HandlePuzzleSolved);
+			Puzzle->OnPuzzleSolved.AddUniqueDynamic(this, &ALevelExitBase::HandlePuzzleSolved);
 		}
 	}
 
-	ExitTrigger->OnComponentBeginOverlap.AddDynamic(this, &ALevelExitBase::OnExitTriggerOverlap);
+	ExitTrigger->OnComponentBeginOverlap.AddUniqueDynamic(this, &ALevelExitBase::OnExitTriggerOverlap);
+
+	// Por si los puzzles ya estaban resueltos antes de este BeginPlay (orden de BeginPlay no
+	// garantizado entre actores): sin esto la salida quedaria cerrada para siempre.
+	if (RequiredPuzzles.Num() > 0)
+	{
+		CheckAllSolved();
+	}
 }
 
 void ALevelExitBase::HandlePuzzleSolved(APuzzleBase* SolvedPuzzle)
@@ -55,12 +62,28 @@ void ALevelExitBase::CheckAllSolved()
 
 	bIsOpened = true;
 	OnExitOpened();
+
+	// BeginOverlap no se dispara si el jugador ya estaba parado dentro del trigger cuando se abrio
+	TArray<AActor*> AlreadyInside;
+	ExitTrigger->GetOverlappingActors(AlreadyInside, ACharacter::StaticClass());
+	for (AActor* Actor : AlreadyInside)
+	{
+		TryBeginExitSequence(Actor);
+	}
 }
 
 void ALevelExitBase::OnExitTriggerOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!bIsOpened || !OtherActor || !OtherActor->IsA<ACharacter>() || bExitSequenceStarted)
+	TryBeginExitSequence(OtherActor);
+}
+
+void ALevelExitBase::TryBeginExitSequence(AActor* OtherActor)
+{
+	// Solo el jugador puede salir: el docente tambien es un ACharacter y, si lo persigue hasta
+	// la salida abierta, antes cargaba el siguiente nivel por su cuenta.
+	const APawn* Pawn = Cast<APawn>(OtherActor);
+	if (!bIsOpened || bExitSequenceStarted || !Pawn || !Pawn->IsPlayerControlled())
 	{
 		return;
 	}
@@ -68,12 +91,9 @@ void ALevelExitBase::OnExitTriggerOverlap(UPrimitiveComponent* OverlappedComp, A
 	bExitSequenceStarted = true;
 
 	// Esto completa el ultimo objetivo de la cadena del nivel (tipicamente "Escapar").
-	if (ACharacter* EscapingCharacter = Cast<ACharacter>(OtherActor))
+	if (UNOVAPLAYObjectiveComponent* Objectives = Pawn->FindComponentByClass<UNOVAPLAYObjectiveComponent>())
 	{
-		if (UNOVAPLAYObjectiveComponent* Objectives = EscapingCharacter->FindComponentByClass<UNOVAPLAYObjectiveComponent>())
-		{
-			Objectives->CompleteCurrentObjective();
-		}
+		Objectives->CompleteCurrentObjective();
 	}
 
 	if (!NextLevelName.IsNone())

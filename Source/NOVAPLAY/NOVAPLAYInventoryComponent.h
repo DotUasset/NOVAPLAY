@@ -1,4 +1,4 @@
-// NOVAPLAYInventoryComponent.h
+﻿// NOVAPLAYInventoryComponent.h
 #pragma once
 
 #include "CoreMinimal.h"

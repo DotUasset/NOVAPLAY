@@ -1,4 +1,4 @@
-// Base en C++ del menu de pausa. La UI (botones, sliders, layout) se arma en un
+﻿// Base en C++ del menu de pausa. La UI (botones, sliders, layout) se arma en un
 // Blueprint hijo (WBP_PauseMenu); esta clase solo expone las funciones que esos
 // controles van a llamar, y sabe como aplicar/guardar cada configuracion.
 

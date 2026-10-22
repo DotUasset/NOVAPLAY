@@ -1,6 +1,7 @@
-#include "InteractableLever.h"
+﻿#include "InteractableLever.h"
 #include "Components/StaticMeshComponent.h"
 #include "Puzzle_LeverSequence.h"
+#include "NOVAPLAYDebug.h"
 
 AInteractableLever::AInteractableLever()
 {
@@ -23,18 +24,11 @@ void AInteractableLever::BeginPlay()
 
 void AInteractableLever::Interact_Implementation(APawn* InteractingPawn)
 {
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow,
-			FString::Printf(TEXT("Lever %d interactuada"), LeverIndex));
-	}
+	NOVAPLAYDebug::ScreenMessage(FString::Printf(TEXT("Lever %d interactuada"), LeverIndex));
 
 	if (!OwningPuzzle)
 	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("OwningPuzzle es NULL!"));
-		}
+		NOVAPLAYDebug::ScreenMessage(TEXT("OwningPuzzle es NULL!"), FColor::Red, 5.0f);
 		return;
 	}
 

@@ -1,4 +1,4 @@
-// Interactable.cpp
+﻿// Interactable.cpp
 #include "Interactable.h"
 
 // No hace falta implementación acá: al ser BlueprintNativeEvent,

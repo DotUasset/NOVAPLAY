@@ -1,4 +1,4 @@
-#include "NOVAPLAYInventoryWidget.h"
+﻿#include "NOVAPLAYInventoryWidget.h"
 
 void UNOVAPLAYInventoryWidget::InitializeInventory(UNOVAPLAYInventoryComponent* InInventoryComponent)
 {
@@ -8,10 +8,20 @@ void UNOVAPLAYInventoryWidget::InitializeInventory(UNOVAPLAYInventoryComponent* 
 	}
 
 	CachedInventoryComponent = InInventoryComponent;
-	CachedInventoryComponent->OnInventoryChanged.AddDynamic(this, &UNOVAPLAYInventoryWidget::HandleInventoryChanged);
+	CachedInventoryComponent->OnInventoryChanged.AddUniqueDynamic(this, &UNOVAPLAYInventoryWidget::HandleInventoryChanged);
 
 	// Mostramos el estado inicial por si ya había ítems agregados antes de crear el widget
 	HandleInventoryChanged();
+}
+
+void UNOVAPLAYInventoryWidget::NativeDestruct()
+{
+	if (CachedInventoryComponent)
+	{
+		CachedInventoryComponent->OnInventoryChanged.RemoveDynamic(this, &UNOVAPLAYInventoryWidget::HandleInventoryChanged);
+	}
+
+	Super::NativeDestruct();
 }
 
 bool UNOVAPLAYInventoryWidget::UseItem(FName ItemID)

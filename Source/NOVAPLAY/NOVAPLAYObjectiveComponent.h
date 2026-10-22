@@ -1,4 +1,4 @@
-// NOVAPLAYObjectiveComponent.h
+﻿// NOVAPLAYObjectiveComponent.h
 #pragma once
 
 #include "CoreMinimal.h"

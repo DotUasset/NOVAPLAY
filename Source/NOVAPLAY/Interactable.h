@@ -1,4 +1,4 @@
-// Interactable.h
+﻿// Interactable.h
 #pragma once
 
 #include "CoreMinimal.h"

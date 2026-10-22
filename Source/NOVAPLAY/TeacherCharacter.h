@@ -1,4 +1,4 @@
-// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador.
+﻿// NOVAPLAY - Personaje enemigo (docente) que patrulla, persigue y atrapa al jugador.
 //
 // Esta clase se encarga SOLO de la logica dura (velocidad, patrulla, deteccion de contacto).
 // Sonido, mensajes de debug y la pantalla de "atrapado" NO se manejan aca: se disparan como
@@ -148,6 +148,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION()
 	void OnCatchOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,

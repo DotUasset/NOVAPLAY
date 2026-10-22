@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion) y
+﻿// NOVAPLAY - BT Service: sincroniza la velocidad del docente (patrulla vs persecucion) y
 // notifica el estado de movimiento a Blueprint (ver ATeacherCharacter::NotifyMovementState).
 
 #pragma once

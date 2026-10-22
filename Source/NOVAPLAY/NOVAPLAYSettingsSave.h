@@ -1,4 +1,4 @@
-// Guarda en disco las configuraciones que no maneja UGameUserSettings (video ya se
+﻿// Guarda en disco las configuraciones que no maneja UGameUserSettings (video ya se
 // guarda solo con Epic). Sensibilidad de mouse y volumenes de audio van aca.
 
 #pragma once

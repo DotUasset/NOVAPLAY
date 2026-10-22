@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -22,6 +22,8 @@ public:
 	bool UseItem(FName ItemID);
 
 protected:
+	virtual void NativeDestruct() override;
+
 	// Implementalo en WBP_Inventory: reconstruir la lista visual
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
 	void OnInventoryUpdated(const TArray<FInventoryItem>& Items);

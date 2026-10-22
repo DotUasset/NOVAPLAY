@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Task: se mueve a un punto aleatorio navegable cerca de una ubicacion del
+﻿// NOVAPLAY - BT Task: se mueve a un punto aleatorio navegable cerca de una ubicacion del
 // Blackboard (tipicamente LastKnownLocation). Pensado para armar una "busqueda" mas
 // convincente que un simple "Move To LastKnownLocation" y quedarse ahi parado: poniendo
 // 2 o 3 de estos en secuencia (con un Wait corto entre cada uno) en la rama de Investigar
@@ -34,6 +34,7 @@ public:
 	float AcceptanceRadius = 60.0f;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual FString GetStaticDescription() const override;
 

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -8,8 +8,9 @@ public class NOVAPLAY : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// Se agregaron AIModule, GameplayTasks y NavigationSystem para soportar
-		// AIController + Behavior Tree + Blackboard + NavMesh (persecucion del docente)
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "AIModule", "GameplayTasks", "NavigationSystem", "Slate", "SlateCore" });
+		// AIModule, GameplayTasks y NavigationSystem: AIController + Behavior Tree + Blackboard + NavMesh
+		// (persecucion del docente). UMG: todos los widgets (HUD, inventario, pausa, atrapado) heredan
+		// de UUserWidget, que vive en ese modulo.
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "AIModule", "GameplayTasks", "NavigationSystem", "Slate", "SlateCore", "UMG" });
 	}
 }

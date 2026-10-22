@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Task: se mueve a un punto aleatorio navegable cerca de una ubicacion del
+﻿// NOVAPLAY - BT Task: se mueve a un punto aleatorio navegable cerca de una ubicacion del
 // Blackboard, para armar una busqueda mas convincente en la rama de Investigar.
 
 #include "BTTask_MoveToRandomPointNearLocation.h"
@@ -31,6 +31,12 @@ EBTNodeResult::Type UBTTask_MoveToRandomPointNearLocation::ExecuteTask(UBehavior
 		return EBTNodeResult::Failed;
 	}
 
+	// Sin centro valido (key vacia) el query de navegacion buscaria alrededor de un punto basura
+	if (!BB->IsVectorValueSet(CenterLocationKey.SelectedKeyName))
+	{
+		return EBTNodeResult::Failed;
+	}
+
 	const FVector Center = BB->GetValueAsVector(CenterLocationKey.SelectedKeyName);
 
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(AICon->GetWorld());
@@ -53,6 +59,17 @@ EBTNodeResult::Type UBTTask_MoveToRandomPointNearLocation::ExecuteTask(UBehavior
 	}
 
 	return (MoveResult == EPathFollowingRequestResult::RequestSuccessful) ? EBTNodeResult::InProgress : EBTNodeResult::Failed;
+}
+
+EBTNodeResult::Type UBTTask_MoveToRandomPointNearLocation::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	// Si el BT interrumpe esta tarea (ej: el docente ve al jugador), frena el movimiento en
+	// curso; si no, seguiria caminando al punto de busqueda mientras otra rama toma el control.
+	if (AAIController* AICon = OwnerComp.GetAIOwner())
+	{
+		AICon->StopMovement();
+	}
+	return EBTNodeResult::Aborted;
 }
 
 void UBTTask_MoveToRandomPointNearLocation::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)

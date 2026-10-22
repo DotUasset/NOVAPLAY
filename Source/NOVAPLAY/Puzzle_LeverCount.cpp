@@ -1,5 +1,6 @@
-#include "Puzzle_LeverCount.h"
+﻿#include "Puzzle_LeverCount.h"
 #include "InteractableSwitch.h"
+#include "NOVAPLAYDebug.h"
 
 void APuzzle_LeverCount::NotifySwitchActivated(AInteractableSwitch* Switch)
 {
@@ -11,11 +12,7 @@ void APuzzle_LeverCount::NotifySwitchActivated(AInteractableSwitch* Switch)
 	ActivatedSwitches.Add(Switch);
 	ActivatedCount = ActivatedSwitches.Num();
 
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Cyan,
-			FString::Printf(TEXT("Palancas: %d/%d"), ActivatedCount, LeversRequired));
-	}
+	NOVAPLAYDebug::ScreenMessage(FString::Printf(TEXT("Palancas: %d/%d"), ActivatedCount, LeversRequired), FColor::Cyan);
 
 	OnLeverProgress.Broadcast(ActivatedCount, LeversRequired);
 

@@ -1,4 +1,4 @@
-// NOVAPLAYObjectiveComponent.cpp
+﻿// NOVAPLAYObjectiveComponent.cpp
 #include "NOVAPLAYObjectiveComponent.h"
 #include "NOVAPLAYInventoryComponent.h"
 
@@ -14,11 +14,17 @@ void UNOVAPLAYObjectiveComponent::InitializeWithInventory(UNOVAPLAYInventoryComp
 		return;
 	}
 
+	// Si ya estabamos enganchados a otro inventario (o a este mismo), soltamos el binding anterior
+	if (CachedInventory)
+	{
+		CachedInventory->OnInventoryChanged.RemoveDynamic(this, &UNOVAPLAYObjectiveComponent::HandleInventoryChanged);
+	}
+
 	CachedInventory = InInventoryComponent;
 
 	// A partir de ahora, cada vez que se agrega/saca algo del inventario, revisamos si
 	// eso afecta al objetivo activo (solo importa si ese objetivo usa contador).
-	CachedInventory->OnInventoryChanged.AddDynamic(this, &UNOVAPLAYObjectiveComponent::HandleInventoryChanged);
+	CachedInventory->OnInventoryChanged.AddUniqueDynamic(this, &UNOVAPLAYObjectiveComponent::HandleInventoryChanged);
 }
 
 void UNOVAPLAYObjectiveComponent::StartObjectiveChain(const FText& InMainObjectiveTitle, const TArray<FObjectiveDefinition>& InChain)
@@ -177,7 +183,7 @@ FText UNOVAPLAYObjectiveComponent::BuildDisplayText(const FObjectiveDefinition& 
 {
 	if (Def.bUseCounter)
 	{
-		return FText::FromString(FString::Printf(TEXT("%s (%d/%d)"), *Def.Description.ToString(), CurrentCount, Def.TargetCount));
+		return FText::Format(INVTEXT("{0} ({1}/{2})"), Def.Description, FText::AsNumber(CurrentCount), FText::AsNumber(Def.TargetCount));
 	}
 	return Def.Description;
 }

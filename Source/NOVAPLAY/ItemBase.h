@@ -1,4 +1,4 @@
-// ItemBase.h
+Ôªø// ItemBase.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,7 +7,7 @@
 #include "ItemBase.generated.h"
 
 /**
- * Clase base para cualquier Ìtem agarrable del piso.
+ * Clase base para cualquier √≠tem agarrable del piso.
  * Implementa IInteractable para poder ser interactuado con la tecla E.
  */
 UCLASS()
@@ -18,28 +18,28 @@ class NOVAPLAY_API AItemBase : public AActor, public IInteractable
 public:
 	AItemBase();
 
-	// Mesh visible del Ìtem en el mundo
+	// Mesh visible del √≠tem en el mundo
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item", meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* ItemMesh;
 
-	// Nombre a mostrar (lo vamos a usar m·s adelante en el inventario/HUD)
+	// Nombre a mostrar (lo vamos a usar m√°s adelante en el inventario/HUD)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	FText ItemName = FText::FromString(TEXT("Item"));
 
-	// Identificador ˙nico de este tipo de Ìtem (ej: "KEY_LIBRARY_01").
-	// Se usa para que el inventario sepa si dos Ìtems son "el mismo tipo" y apilarlos.
+	// Identificador √∫nico de este tipo de √≠tem (ej: "KEY_LIBRARY_01").
+	// Se usa para que el inventario sepa si dos √≠tems son "el mismo tipo" y apilarlos.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FName ItemID;
 
-	// Õcono a mostrar en el inventario
+	// √çcono a mostrar en el inventario
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	class UTexture2D* ItemIcon = nullptr;
 
-	// DescripciÛn del Ìtem
+	// Descripci√≥n del √≠tem
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FText ItemDescription;
 
-	// ImplementaciÛn de la interfaz: quÈ pasa cuando el personaje aprieta E sobre este Ìtem
+	// Implementaci√≥n de la interfaz: qu√© pasa cuando el personaje aprieta E sobre este √≠tem
 	virtual void Interact_Implementation(APawn* InteractingPawn) override;
 
 protected:

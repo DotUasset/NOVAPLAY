@@ -1,4 +1,4 @@
-// NOVAPLAY - BT Task generico: limpia una key del Blackboard
+﻿// NOVAPLAY - BT Task generico: limpia una key del Blackboard
 
 #include "BTTask_ClearBlackboardValue.h"
 #include "BehaviorTree/BlackboardComponent.h"

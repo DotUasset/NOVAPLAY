@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NOVAPLAYHUDWidget.h"
 
@@ -23,10 +23,27 @@ void UNOVAPLAYHUDWidget::InitializeInventory(UNOVAPLAYInventoryComponent* InInve
 	CachedInventoryComponent = InInventoryComponent;
 
 	// Nos suscribimos: a partir de ahora, cada AddItem/RemoveItem dispara HandleInventoryChanged
-	CachedInventoryComponent->OnInventoryChanged.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleInventoryChanged);
+	CachedInventoryComponent->OnInventoryChanged.AddUniqueDynamic(this, &UNOVAPLAYHUDWidget::HandleInventoryChanged);
 
-	// Mostramos el estado inicial por si ya hab�a �tems agregados antes de crear el widget
+	// Mostramos el estado inicial por si ya había ítems agregados antes de crear el widget
 	HandleInventoryChanged();
+}
+
+void UNOVAPLAYHUDWidget::NativeDestruct()
+{
+	if (CachedInventoryComponent)
+	{
+		CachedInventoryComponent->OnInventoryChanged.RemoveDynamic(this, &UNOVAPLAYHUDWidget::HandleInventoryChanged);
+	}
+
+	if (CachedObjectiveComponent)
+	{
+		CachedObjectiveComponent->OnObjectivesChanged.RemoveDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectivesChanged);
+		CachedObjectiveComponent->OnObjectiveCompleted.RemoveDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectiveCompleted);
+		CachedObjectiveComponent->OnMainObjectiveRequested.RemoveDynamic(this, &UNOVAPLAYHUDWidget::HandleMainObjectiveRequested);
+	}
+
+	Super::NativeDestruct();
 }
 
 void UNOVAPLAYHUDWidget::HandleInventoryChanged()
@@ -51,17 +68,17 @@ void UNOVAPLAYHUDWidget::InitializeObjectives(UNOVAPLAYObjectiveComponent* InObj
 
 	CachedObjectiveComponent = InObjectiveComponent;
 
-	CachedObjectiveComponent->OnObjectivesChanged.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectivesChanged);
-	CachedObjectiveComponent->OnObjectiveCompleted.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectiveCompleted);
-	CachedObjectiveComponent->OnMainObjectiveRequested.AddDynamic(this, &UNOVAPLAYHUDWidget::HandleMainObjectiveRequested);
+	CachedObjectiveComponent->OnObjectivesChanged.AddUniqueDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectivesChanged);
+	CachedObjectiveComponent->OnObjectiveCompleted.AddUniqueDynamic(this, &UNOVAPLAYHUDWidget::HandleObjectiveCompleted);
+	CachedObjectiveComponent->OnMainObjectiveRequested.AddUniqueDynamic(this, &UNOVAPLAYHUDWidget::HandleMainObjectiveRequested);
 
-	// Mostramos el estado inicial por si la cadena de objetivos ya había arrancado
+	// Mostramos el estado inicial por si la cadena de objetivos ya habÃ­a arrancado
 	// antes de que este widget se creara.
 	HandleObjectivesChanged();
 
 	// Mismo problema que arriba, pero para el objetivo principal: OnMainObjectiveRequested
-	// se dispara UNA sola vez dentro de StartObjectiveChain, así que si este widget se
-	// suscribe después de ese momento, se pierde para siempre. Lo resincronizamos a mano.
+	// se dispara UNA sola vez dentro de StartObjectiveChain, asÃ­ que si este widget se
+	// suscribe despuÃ©s de ese momento, se pierde para siempre. Lo resincronizamos a mano.
 	const FText CachedMainObjective = CachedObjectiveComponent->GetMainObjectiveTitle();
 	if (!CachedMainObjective.IsEmpty())
 	{
