@@ -93,6 +93,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Caught Screen")
 	void ShowCaughtScreen();
 
+	// ----- FINAL: SENTARSE EN EL ASIENTO -----
+	// true mientras el jugador esta sentado en el final (bloquea todo el gameplay)
+	UPROPERTY(BlueprintReadOnly, Category = "Seat")
+	bool bIsSeated = false;
+
+	// Lo llama AClassroomSeat: coloca al jugador en el asiento y lo congela
+	UFUNCTION(BlueprintCallable, Category = "Seat")
+	void SitDown(const FTransform& SeatTransform);
+
 	// override necesario para procesar UpdateStamina cada frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -306,7 +315,7 @@ protected:
 	void SetFocusedInteractable(AActor* NewFocus);
 
 	// true si el jugador esta en un menu / pantalla que bloquea las acciones de gameplay
-	bool IsGameplayInputBlocked() const { return bIsCaught || bPauseMenuOpen || bInventoryOpen; }
+	bool IsGameplayInputBlocked() const { return bIsCaught || bIsSeated || bPauseMenuOpen || bInventoryOpen; }
 
 	// se llama todos los frames para manejar el drain/regen de stamina
 	void UpdateStamina(float DeltaTime);
@@ -391,6 +400,24 @@ protected:
 
 	// Distancia acumulada desde el ultimo paso/ruido emitido
 	float DistanceSinceLastFootstep = 0.0f;
+
+	// ----- AUDIO DE PASOS -----
+	// Distancia (cm) entre un sonido de paso y el siguiente. Es independiente de
+	// FootstepNoiseInterval (ese es para el oido del docente). Corriendo suenan mas seguido
+	// solos, porque se mide por distancia recorrida.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	float FootstepSoundInterval = 90.0f;
+
+	float DistanceSinceLastFootstepSound = 0.0f;
+
+	// Se dispara cada vez que toca sonar un paso. Implementalo en el Event Graph del Blueprint
+	// del jugador y reproduce ahi el sonido (Play Sound at Location / Play Sound 2D).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Audio")
+	void OnFootstep(bool bCrouching, bool bRunning);
+
+	// Se dispara al aterrizar de un salto/caida (sonido de golpe en el piso).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Audio")
+	void OnLandedAudio();
 
 	// Emite un evento de ruido en la posicion actual del personaje para que cualquier AI que
 	// escuche (AISense_Hearing) lo detecte. Publica y BlueprintCallable para que interactuables

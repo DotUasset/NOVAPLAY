@@ -186,7 +186,7 @@ void ANOVAPLAYCharacter::SetFlashlightAvailable(bool bAvailable)
 
 void ANOVAPLAYCharacter::ToggleFlashlight()
 {
-	if (!bFlashlightAvailable || bIsCaught || bPauseMenuOpen || bInventoryOpen)
+	if (!bFlashlightAvailable || bIsCaught || bIsSeated || bPauseMenuOpen || bInventoryOpen)
 	{
 		return;
 	}
@@ -425,6 +425,8 @@ void ANOVAPLAYCharacter::Landed(const FHitResult& Hit)
 	// Aterrizar hace ruido: si el docente esta escuchando cerca, esto puede delatarte aunque
 	// hayas saltado agachado o fuera de su vista.
 	EmitAINoise(LandingNoiseLoudness);
+
+	OnLandedAudio();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -449,6 +451,7 @@ void ANOVAPLAYCharacter::UpdateFootstepNoise(float DeltaTime)
 	if (!GetCharacterMovement()->IsMovingOnGround())
 	{
 		DistanceSinceLastFootstep = 0.0f; // en el aire no hay "pasos"; el aterrizaje ya emite el suyo
+		DistanceSinceLastFootstepSound = 0.0f;
 		return;
 	}
 
@@ -456,6 +459,14 @@ void ANOVAPLAYCharacter::UpdateFootstepNoise(float DeltaTime)
 	if (SpeedThisFrame <= KINDA_SMALL_NUMBER)
 	{
 		return; // quieto: no acumula distancia, no genera pasos
+	}
+
+	// Sonido de paso (independiente del ruido que escucha el docente)
+	DistanceSinceLastFootstepSound += SpeedThisFrame * DeltaTime;
+	if (DistanceSinceLastFootstepSound >= FootstepSoundInterval)
+	{
+		DistanceSinceLastFootstepSound = 0.0f;
+		OnFootstep(bIsCrouched, bIsEffectivelySprinting);
 	}
 
 	DistanceSinceLastFootstep += SpeedThisFrame * DeltaTime;
@@ -597,7 +608,7 @@ void ANOVAPLAYCharacter::Interact()
 void ANOVAPLAYCharacter::ToggleInventory()
 {
 	// No se abre/cierra el inventario encima de la pausa o de la pantalla de "atrapado"
-	if (bIsCaught || bPauseMenuOpen)
+	if (bIsCaught || bIsSeated || bPauseMenuOpen)
 	{
 		return;
 	}
@@ -655,7 +666,7 @@ void ANOVAPLAYCharacter::ToggleInventory()
 void ANOVAPLAYCharacter::TogglePauseMenu()
 {
 	// La pantalla de "atrapado" tiene prioridad: no se puede abrir/cerrar la pausa encima
-	if (bIsCaught)
+	if (bIsCaught || bIsSeated)
 	{
 		return;
 	}
@@ -774,6 +785,52 @@ void ANOVAPLAYCharacter::ShowCaughtScreen()
 	if (CaughtScreenWidgetInstance && !CaughtScreenWidgetInstance->IsInViewport())
 	{
 		CaughtScreenWidgetInstance->AddToViewport(20); // por encima del HUD/inventario/menu de pausa
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Final: sentarse en el asiento
+
+void ANOVAPLAYCharacter::SitDown(const FTransform& SeatTransform)
+{
+	if (bIsSeated || bIsCaught)
+	{
+		return;
+	}
+
+	if (bPauseMenuOpen)
+	{
+		ClosePauseMenu();
+	}
+
+	if (bInventoryOpen)
+	{
+		ToggleInventory();
+	}
+
+	bIsSeated = true;
+	SetFocusedInteractable(nullptr);
+	StopSprint();
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+		PC->SetControlRotation(SeatTransform.Rotator());
+	}
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	// Sin colision para que la capsula no choque con la silla/pupitre al teletransportarse
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SetActorLocationAndRotation(SeatTransform.GetLocation(), SeatTransform.GetRotation(),
+		false, nullptr, ETeleportType::TeleportPhysics);
+
+	// El fundido de camara no afecta a los widgets, asi que ocultamos el HUD
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
